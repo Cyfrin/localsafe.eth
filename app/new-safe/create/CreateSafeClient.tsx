@@ -17,7 +17,7 @@ import {
   DEFAULT_DEPLOY_STEPS,
   STEPS_DEPLOY_LABEL,
 } from "@/app/utils/constants";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import useNewSafe from "@/app/hooks/useNewSafe";
 import {
   SafeDeployStep,
@@ -43,7 +43,7 @@ export default function CreateSafeClient() {
   // Hooks
   const { address: signer, chain } = useAccount();
   const chains = useChains();
-  const router = useRouter();
+  const navigate = useNavigate();
   const { addSafe, contractNetworks } = useSafeWalletContext();
   const { predictNewSafeAddress, deployNewSafe } = useNewSafe();
 
@@ -393,7 +393,7 @@ export default function CreateSafeClient() {
         });
       }
     });
-    router.push("/accounts");
+    navigate("/accounts");
   }
 
   /**
@@ -423,7 +423,7 @@ export default function CreateSafeClient() {
         {/* Header with Stepper and Cancel button */}
         <div className="grid w-full grid-cols-6 items-center">
           <div className="self-start">
-            <BtnCancel href="/accounts" data-testid="cancel-create-safe-btn" />
+            <BtnCancel to="/accounts" data-testid="cancel-create-safe-btn" />
           </div>
           <Stepper
             steps={CREATE_STEPS}
@@ -569,7 +569,7 @@ export default function CreateSafeClient() {
         }
         onSuccess={
           isDeploySuccess(deploySteps, deployTxHash, predictedAddresses)
-            ? () => router.push("/accounts")
+            ? () => navigate("/accounts")
             : undefined
         }
       />

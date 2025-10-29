@@ -2,7 +2,7 @@
 
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
 
@@ -27,7 +27,7 @@ export default function HomePageClient() {
         <div className="flex w-full flex-col items-center gap-6">
           {isConnected ? (
             <Link
-              href="/accounts"
+              to="/accounts"
               className="btn btn-primary btn-soft text-md w-full rounded py-4 sm:text-lg"
               data-testid="continue-with-account"
             >

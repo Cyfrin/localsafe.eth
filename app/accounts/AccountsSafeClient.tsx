@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
 import { useSafeWalletContext } from "../provider/SafeWalletProvider";
@@ -118,14 +118,14 @@ export default function AccountsPage() {
           {/* Create / Add Safe Buttons */}
           <div className="flex flex-col gap-2 md:flex-row">
             <Link
-              href="/new-safe/create"
+              to="/new-safe/create"
               className="btn btn-primary btn-sm"
               data-testid="create-safe-nav-btn"
             >
               Deploy New Safe
             </Link>
             <Link
-              href="/new-safe/connect"
+              to="/new-safe/connect"
               className="btn btn-secondary btn-sm"
               data-testid="add-safe-nav-btn"
             >
@@ -198,7 +198,7 @@ export default function AccountsPage() {
                       {chains.map(({ chainId }) => (
                         <Link
                           className="list-row border-accent text-base-content hover:bg-base-200 flex w-full items-center gap-4 rounded border-2 p-4 font-bold"
-                          href={`/safe/${safeAddress}`}
+                          to={`/safe/${safeAddress}`}
                           key={chainId}
                           onClick={() =>
                             switchChain({ chainId: parseInt(chainId) })

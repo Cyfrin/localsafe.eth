@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Providers from "./provider/providers";
-import NavBar from "./components/NavBar";
-import Footer from "./components/Footer";
 
 export const metadata: Metadata = {
   title: "localsafe.eth",
@@ -24,9 +22,7 @@ export default async function RootLayout({
     <html lang="en" className="min-h-screen">
       <body className={`bg-base-300 flex min-h-screen flex-col antialiased`}>
         <Providers>
-          <NavBar />
-          <main className="flex flex-1">{children}</main>
-          <Footer />
+          {children}
         </Providers>
       </body>
     </html>

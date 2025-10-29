@@ -1,7 +1,4 @@
 {
-  "bin": {
-    "localsafe": "./cli.js"
-  },
   "name": "localsafe.eth",
   "version": "0.1.1",
   "private": true,
@@ -11,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "localsafe": "next build --turbopack && next start",
+    "localsafe": "next build && npx serve out -p 3000",
     "anvil": "anvil --load-state ./anvil-safe-state.json --block-time 1",
     "test:e2e": "bash tests/scripts/start-anvil-and-test.sh",
     "test:clean": "pkill -9 ^next-server || true; pkill -9 ^anvil",
@@ -31,6 +28,7 @@
     "next": "15.5.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-router-dom": "^7.9.5",
     "viem": "~2.35.1",
     "wagmi": "^2.16.6"
   },

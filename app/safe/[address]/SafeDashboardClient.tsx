@@ -10,12 +10,12 @@ import {
 } from "@/app/utils/constants";
 import React, { useEffect, useState, useRef } from "react";
 import { useSafeTxContext } from "@/app/provider/SafeTxProvider";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAccount } from "wagmi";
 import { formatEther } from "viem";
 import { ImportTxPreview, SafeDeployStep } from "@/app/utils/types";
 import { EthSafeTransaction, EthSafeSignature } from "@safe-global/protocol-kit";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import DeploymentModal from "@/app/components/DeploymentModal";
 import ImportSafeTxModal from "@/app/components/ImportSafeTxModal";
 import TokenBalancesSection from "@/app/components/TokenBalancesSection";
@@ -36,8 +36,8 @@ export default function SafeDashboardClient({
 }) {
   // Try to get the name from addressBook for the current chain
   const { chain, address: connectedAddress } = useAccount();
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const {
     safeName,
     safeInfo,
@@ -238,7 +238,7 @@ export default function SafeDashboardClient({
 
   // Handler to go to builder page
   function handleGoToBuilder() {
-    router.push(`/safe/${safeAddress}/new-tx`);
+    navigate(`/safe/${safeAddress}/new-tx`);
   }
 
   // Utility to handle Safe transaction import and state update
@@ -273,7 +273,7 @@ export default function SafeDashboardClient({
     }));
     const txHash = await createBatchedOwnerManagementTransaction(typedChanges, newThreshold);
     if (txHash) {
-      router.push(`/safe/${safeAddress}/tx/${txHash}`);
+      navigate(`/safe/${safeAddress}/tx/${txHash}`);
     }
   }
 
@@ -515,7 +515,7 @@ export default function SafeDashboardClient({
                   <Link
                     className="btn btn-accent btn-outline flex w-full items-center justify-between gap-2 rounded text-sm"
                     data-testid={`safe-dashboard-current-tx-link-${hash}`}
-                    href={`/safe/${safeAddress}/tx/${hash}`}
+                    to={`/safe/${safeAddress}/tx/${hash}`}
                     title="View transaction details"
                   >
                     <div className="flex items-center gap-2">

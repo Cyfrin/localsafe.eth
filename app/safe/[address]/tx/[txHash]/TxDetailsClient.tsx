@@ -2,7 +2,7 @@
 
 import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
-import { useParams, useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import useSafe from "@/app/hooks/useSafe";
 import { useEffect, useState, useRef } from "react";
 import { EthSafeTransaction, EthSafeSignature } from "@safe-global/protocol-kit";
@@ -48,11 +48,16 @@ function getChainNameForCyfrin(chainId: number): string {
  *
  * @returns {JSX.Element} The rendered TxDetailsClient component.
  */
-export default function TxDetailsClient() {
+export default function TxDetailsClient({
+  safeAddress,
+  txHash,
+}: {
+  safeAddress: `0x${string}`;
+  txHash: string;
+}) {
   // Hooks
   const { chain, address: connectedAddress } = useAccount();
-  const { address: safeAddress, txHash } = useParams<{ address: `0x${string}`; txHash: string }>();
-  const router = useRouter();
+  const navigate = useNavigate();
   const {
     signSafeTransaction,
     broadcastSafeTransaction,
@@ -453,7 +458,7 @@ export default function TxDetailsClient() {
     <AppSection testid="tx-details-section">
       <div className="mb-4">
         <BtnCancel
-          href={`/safe/${safeAddress}`}
+          to={`/safe/${safeAddress}`}
           label="Back to Safe"
           data-testid="tx-details-cancel-btn"
         />
@@ -684,7 +689,7 @@ export default function TxDetailsClient() {
               >
                 <button
                   className="btn btn-outline btn-primary"
-                  onClick={() => router.push(`/safe/${safeAddress}`)}
+                  onClick={() => navigate(`/safe/${safeAddress}`)}
                   title="Return to dashboard without signing"
                   data-testid="tx-details-queue-btn"
                 >
@@ -850,7 +855,7 @@ export default function TxDetailsClient() {
                   onSuccess={() => {
                     removeTransaction(safeAddress);
                     setShowModal(false);
-                    router.push(`/safe/${safeAddress}`);
+                    navigate(`/safe/${safeAddress}`);
                   }}
                   successLabel="Back to Safe"
                   testid="tx-details-broadcast-modal"

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import GithubSvg from "../assets/svg/GithubSvg";
@@ -40,7 +39,7 @@ export default function Footer() {
 
         {/* Center - Powered by Cyfrin logo */}
         <div className="flex flex-1 items-center justify-center">
-          <Link
+          <a
             href="https://www.cyfrin.io/"
             target="_blank"
             rel="noopener noreferrer"
@@ -51,7 +50,7 @@ export default function Footer() {
               alt="Powered by Cyfrin"
               height={32}
             />
-          </Link>
+          </a>
         </div>
 
         {/* Right side - Version and GitHub link */}
@@ -59,7 +58,7 @@ export default function Footer() {
           <span className="text-base-content text-sm opacity-60">
             v{version}
           </span>
-          <Link
+          <a
             href="https://github.com/Cyfrin/localsafe.eth"
             target="_blank"
             rel="noopener noreferrer"
@@ -67,7 +66,7 @@ export default function Footer() {
             aria-label="View source on GitHub"
           >
             <GithubSvg />
-          </Link>
+          </a>
         </div>
       </div>
     </footer>

@@ -1,5 +1,5 @@
-import HomePageClient from "./HomePageClient";
+import App from "./App";
 
-export default async function HomePage() {
-  return <HomePageClient />;
+export default function HomePage() {
+  return <App />;
 }

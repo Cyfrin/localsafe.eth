@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import NetworkModal from "./NetworkModal";
 import CustomConnectButton from "./CustomConnectButton";
@@ -94,14 +94,14 @@ export default function NavBar() {
       <div className="flex items-center">
         <Link
           className="mx-2 px-2 text-sm font-bold sm:text-xl"
-          href="/accounts"
+          to="/accounts"
         >
           localsafe.eth
         </Link>
       </div>
       <div className="flex items-center">
         <Link
-          href="/settings"
+          to="/settings"
           className="btn btn-ghost btn-circle"
           title="Advanced Settings"
         >

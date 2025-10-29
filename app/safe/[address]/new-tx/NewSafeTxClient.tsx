@@ -6,7 +6,7 @@ import AppCard from "@/app/components/AppCard";
 import { useState } from "react";
 import React from "react";
 import useSafe from "@/app/hooks/useSafe";
-import { useParams, useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import BtnCancel from "@/app/components/BtnCancel";
 import { AbiFunctionItem } from "@/app/utils/types";
 import { useSafeTxContext } from "@/app/provider/SafeTxProvider";
@@ -82,10 +82,13 @@ function parseAbiMethodsFromJson(json: string): string[] {
  *
  * @returns Component for creating a new Safe transaction
  */
-export default function NewSafeTxClient() {
+export default function NewSafeTxClient({
+  safeAddress,
+}: {
+  safeAddress: `0x${string}`;
+}) {
   // Hooks
-  const { address: safeAddress } = useParams();
-  const router = useRouter();
+  const navigate = useNavigate();
   const { chain } = useAccount();
   const { buildSafeTransaction, getSafeTransactionHash, isOwner, safeInfo } = useSafe(
     safeAddress as `0x${string}`,
@@ -199,7 +202,7 @@ export default function NewSafeTxClient() {
       }
       const hash = await getSafeTransactionHash(safeTx);
       // Redirect to tx details page
-      router.push(`/safe/${safeAddress}/tx/${hash}`);
+      navigate(`/safe/${safeAddress}/tx/${hash}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -288,7 +291,7 @@ export default function NewSafeTxClient() {
     <AppSection className="mx-auto max-w-4xl">
       <div className="mb-4">
         <BtnCancel
-          href={`/safe/${safeAddress}`}
+          to={`/safe/${safeAddress}`}
           label="Back to Safe"
           data-testid="new-safe-tx-cancel-btn"
         />

@@ -100,7 +100,7 @@ export default function ConnectSafeClient() {
   return (
     <AppSection className="flex min-h-screen items-center">
       <div className="self-start">
-        <BtnCancel href="/accounts" />
+        <BtnCancel to="/accounts" />
       </div>
       <AppCard
         title={

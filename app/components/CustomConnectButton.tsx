@@ -19,6 +19,7 @@ export default function CustomConnectButton({
   chainStatusDisplay,
 }: CustomConnectButtonProps) {
   const [isChainMenuOpen, setIsChainMenuOpen] = useState(false);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExportNetworks = () => {
@@ -172,7 +173,7 @@ export default function CustomConnectButton({
                         className="btn btn-ghost btn-sm flex items-center gap-2 rounded"
                         onClick={() => setIsChainMenuOpen(!isChainMenuOpen)}
                       >
-                        {chain.hasIcon && chain.iconUrl ? (
+                        {chain.hasIcon && chain.iconUrl && !imageErrors[chain.id] ? (
                           <div
                             className="h-5 w-5 overflow-hidden rounded-full"
                             style={{ background: chain.iconBackground }}
@@ -181,6 +182,7 @@ export default function CustomConnectButton({
                               alt={chain.name ?? "Chain icon"}
                               src={chain.iconUrl}
                               className="h-5 w-5"
+                              onError={() => setImageErrors(prev => ({ ...prev, [chain.id]: true }))}
                             />
                           </div>
                         ) : (
