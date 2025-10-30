@@ -139,7 +139,7 @@ export default function NavBar() {
         </button>
         <div className="divider divider-horizontal mx-1"></div>
         <label className="swap swap-rotate">
-          <input type="checkbox" className="theme-controller" value="light" />
+          <input type="checkbox" className="theme-controller" value="dark" />
           <SunSvg />
           <MoonSvg />
         </label>
