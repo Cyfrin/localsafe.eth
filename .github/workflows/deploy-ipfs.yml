@@ -1,0 +1,47 @@
+name: Build and Deploy to IPFS
+
+on:
+  release:
+    types: [published]
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build static site
+        run: pnpm run build
+
+      - name: Deploy to Pinata
+        id: pinata
+        uses: aave/pinata-action@35662944e92cf082457973f10aa42e48df179b47
+        with:
+          PINATA_API_KEY: ${{ secrets.PINATA_API_KEY }}
+          PINATA_SECRET_KEY: ${{ secrets.PINATA_SECRET_KEY }}
+          PIN_ALIAS: 'localsafe-${{ github.ref_name }}'
+          BUILD_LOCATION: './out'
+          CID_VERSION: 1
+
+      - name: Output IPFS CID
+        run: |
+          echo "::notice title=IPFS Deployment::Successfully deployed to IPFS!"
+          echo "::notice title=IPFS CID::${{ steps.pinata.outputs.cid }}"
+          echo "::notice title=IPFS Gateway::https://gateway.pinata.cloud/ipfs/${{ steps.pinata.outputs.cid }}"
