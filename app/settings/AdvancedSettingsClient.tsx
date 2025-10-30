@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
+import { useToast } from "@/app/hooks/useToast";
+import { useConfirm } from "@/app/hooks/useToast";
 
 interface StorageItem {
   key: string;
@@ -21,8 +23,18 @@ const KNOWN_KEYS = [
   { key: "coingecko-price-cache", description: "Cached token prices" },
 ];
 
+// Keys that require a page reload to take effect
+const KEYS_REQUIRING_RELOAD = [
+  "MSIG_wagmiConfigNetworks",
+  "MSIGUI_safeWalletData",
+  "walletconnect-project-id",
+  "MSIGUI_safeCurrentTxMap",
+];
+
 export default function AdvancedSettingsClient() {
   const navigate = useNavigate();
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const [storageItems, setStorageItems] = useState<StorageItem[]>([]);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -76,7 +88,7 @@ export default function AdvancedSettingsClient() {
     setEditValue(isValid ? JSON.stringify(parsed, null, 2) : value);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editingKey) return;
 
     try {
@@ -90,17 +102,36 @@ export default function AdvancedSettingsClient() {
       setEditingKey(null);
       setEditValue("");
       loadStorage();
-      alert("Saved successfully! Refresh the page for changes to take effect.");
+
+      // Check if this key requires a page reload to take effect
+      if (KEYS_REQUIRING_RELOAD.includes(editingKey)) {
+        const confirmed = await confirm(
+          "Settings saved! The page will reload to apply changes. Continue?",
+          "Reload Required"
+        );
+        if (confirmed) {
+          window.location.reload();
+        } else {
+          toast.warning("Settings saved, but you'll need to manually refresh the page for changes to take effect.");
+        }
+      } else {
+        toast.success("Settings saved successfully!");
+      }
     } catch (error) {
-      alert(`Invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
+      toast.error(`Invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
-  const handleDelete = (key: string) => {
-    if (!confirm(`Are you sure you want to delete "${key}"?`)) return;
+  const handleDelete = async (key: string) => {
+    const confirmed = await confirm(
+      `Are you sure you want to delete "${key}"?`,
+      "Delete Confirmation"
+    );
+    if (!confirmed) return;
 
     localStorage.removeItem(key);
     loadStorage();
+    toast.success(`Deleted "${key}" successfully`);
   };
 
   const handleExportAll = () => {
@@ -123,18 +154,20 @@ export default function AdvancedSettingsClient() {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "application/json";
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
 
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         try {
           const data = JSON.parse(event.target?.result as string);
 
-          if (!confirm(`This will overwrite ${Object.keys(data).length} localStorage items. Continue?`)) {
-            return;
-          }
+          const confirmed = await confirm(
+            `This will overwrite ${Object.keys(data).length} localStorage items. Continue?`,
+            "Import Confirmation"
+          );
+          if (!confirmed) return;
 
           Object.entries(data).forEach(([key, value]) => {
             const stringValue = typeof value === "string" ? value : JSON.stringify(value);
@@ -142,9 +175,9 @@ export default function AdvancedSettingsClient() {
           });
 
           loadStorage();
-          alert("Import successful! Refresh the page for changes to take effect.");
+          toast.success("Import successful! Refresh the page for changes to take effect.");
         } catch (error) {
-          alert(`Import failed: ${error instanceof Error ? error.message : String(error)}`);
+          toast.error(`Import failed: ${error instanceof Error ? error.message : String(error)}`);
         }
       };
       reader.readAsText(file);
@@ -152,18 +185,22 @@ export default function AdvancedSettingsClient() {
     input.click();
   };
 
-  const handleClearAll = () => {
-    if (!confirm("Are you sure you want to clear ALL localStorage data? This cannot be undone!")) {
-      return;
-    }
+  const handleClearAll = async () => {
+    const firstConfirm = await confirm(
+      "Are you sure you want to clear ALL localStorage data? This cannot be undone!",
+      "Clear All Data"
+    );
+    if (!firstConfirm) return;
 
-    if (!confirm("This will delete all your wallets, transactions, and settings. Are you ABSOLUTELY sure?")) {
-      return;
-    }
+    const secondConfirm = await confirm(
+      "This will delete all your wallets, transactions, and settings. Are you ABSOLUTELY sure?",
+      "Final Warning"
+    );
+    if (!secondConfirm) return;
 
     localStorage.clear();
     loadStorage();
-    alert("All data cleared. Refresh the page.");
+    toast.success("All data cleared. Refresh the page.");
   };
 
   const filteredItems = storageItems.filter(
@@ -200,7 +237,7 @@ export default function AdvancedSettingsClient() {
               <h3 className="font-bold">Caution: Advanced Users Only</h3>
               <div className="text-sm">
                 Editing these values directly can break the application. Always export your data
-                before making changes. After editing, refresh the page for changes to take effect.
+                before making changes. Some settings will automatically reload the page to apply changes.
               </div>
             </div>
           </div>
