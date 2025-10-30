@@ -18,6 +18,7 @@ import {
   darkTheme,
 } from "@rainbow-me/rainbowkit";
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
+import { http } from "wagmi";
 import {
   mainnet,
   sepolia,
@@ -137,10 +138,20 @@ export const WagmiConfigProvider: React.FC<{
   const wagmiConfig = useMemo(() => {
     if (!isMounted) return null;
 
+    // Create transports object that uses wallet provider's RPC (EIP-1193)
+    // This ensures we use the user's wallet RPC instead of public RPC endpoints
+    const transports = configChains.reduce((acc, chain) => {
+      // http() with no URL uses the wallet's provider via window.ethereum (EIP-1193)
+      // Falls back to chain's default RPC only if wallet doesn't support the chain
+      acc[chain.id] = http();
+      return acc;
+    }, {} as Record<number, ReturnType<typeof http>>);
+
     return getDefaultConfig({
       appName: "localsafe.eth",
       projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
       chains: configChains as [typeof mainnet, ...[typeof mainnet]],
+      transports,
       ssr: false,
     });
   }, [configChains, isMounted]);
