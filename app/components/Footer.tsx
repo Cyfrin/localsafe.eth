@@ -46,7 +46,7 @@ export default function Footer() {
             className="transition-opacity hover:opacity-80"
           >
             <Image
-              src={theme === "dark" ? poweredByCyfrinBright : poweredByCyfrinDark}
+              src={theme === "dark" ? poweredByCyfrinDark : poweredByCyfrinBright}
               alt="Powered by Cyfrin"
               height={32}
             />
