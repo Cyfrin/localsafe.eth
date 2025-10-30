@@ -6,7 +6,7 @@ import BtnCancel from "@/app/components/BtnCancel";
 import NetworkModal from "@/app/components/NetworkModal";
 import { useState } from "react";
 import { useChains } from "wagmi";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { useSafeWalletContext } from "@/app/provider/SafeWalletProvider";
 import useNewSafe from "@/app/hooks/useNewSafe";
 import { getRandomSafeName, sanitizeUserInput } from "@/app/utils/helpers";
@@ -26,7 +26,7 @@ export default function ConnectSafeClient() {
   const chains = useChains();
   const { addSafe, safeWalletData } = useSafeWalletContext();
   const { connectNewSafe } = useNewSafe();
-  const router = useRouter();
+  const navigate = useNavigate();
 
   // State for name, address, chain, error, loading
   const [safeName, setSafeName] = useState<string>("");
@@ -87,7 +87,7 @@ export default function ConnectSafeClient() {
       }
       // Store in addressBook with name
       addSafe(selectedChain, safeAddress, nameToStore);
-      router.push("/accounts");
+      navigate("/accounts");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to connect or add Safe",

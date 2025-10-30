@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useWalletConnect } from "../provider/WalletConnectProvider";
 import { useAccount } from "wagmi";
-import { useParams } from "next/navigation";
+import { useParams } from "react-router-dom";
 
 type WalletConnectModalProps = {
   open: boolean;
@@ -14,7 +14,7 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
   const [activeTab, setActiveTab] = useState(0);
   const [pairingCode, setPairingCode] = useState("");
   const [apiKeyInput, setApiKeyInput] = useState("");
-  const { address: safeAddress } = useParams<{ address: `0x${string}` }>();
+  const { address: safeAddress } = useParams<{ address: string }>();
   const { chain } = useAccount();
 
   const {

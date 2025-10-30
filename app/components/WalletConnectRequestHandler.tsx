@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useWalletConnect } from "../provider/WalletConnectProvider";
-import { useRouter, useParams, usePathname } from "next/navigation";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import useSafe from "../hooks/useSafe";
 import { useAccount } from "wagmi";
 
@@ -13,9 +13,10 @@ import { useAccount } from "wagmi";
  */
 export default function WalletConnectRequestHandler() {
   const { pendingRequest, rejectRequest, clearPendingRequest } = useWalletConnect();
-  const router = useRouter();
-  const pathname = usePathname();
-  const { address: safeAddress } = useParams<{ address?: `0x${string}` }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const pathname = location.pathname;
+  const { address: safeAddress } = useParams<{ address?: string }>();
   const processedRequestIds = useRef(new Set<number>());
   const lastRequestId = useRef<number | null>(null);
   const isNavigatingToWcPage = useRef(false);
@@ -63,7 +64,7 @@ export default function WalletConnectRequestHandler() {
       isNavigatingToWcPage.current = true;
 
       // Navigate to the Safe's WalletConnect transaction page
-      router.push(`/safe/${safeAddress}/wc-tx`);
+      navigate(`/safe/${safeAddress}/wc-tx`);
     }
 
     // Handle other methods like eth_signTypedData, eth_sign, personal_sign, etc.
@@ -89,9 +90,9 @@ export default function WalletConnectRequestHandler() {
       isNavigatingToWcPage.current = true;
 
       // Navigate to the Safe's WalletConnect signing page
-      router.push(`/safe/${safeAddress}/wc-sign`);
+      navigate(`/safe/${safeAddress}/wc-sign`);
     }
-  }, [pendingRequest, router, safeAddress]);
+  }, [pendingRequest, navigate, safeAddress]);
 
   // Auto-reject requests when navigating away from WalletConnect pages
   useEffect(() => {

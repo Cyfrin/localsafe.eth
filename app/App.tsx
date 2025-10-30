@@ -3,6 +3,7 @@
 import { HashRouter, Routes, Route, useParams } from "react-router-dom";
 import NavBar from "./components/NavBar";
 import Footer from "./components/Footer";
+import WalletConnectRequestHandler from "./components/WalletConnectRequestHandler";
 import HomePageClient from "./HomePageClient";
 import AccountsSafeClient from "./accounts/AccountsSafeClient";
 import AdvancedSettingsClient from "./settings/AdvancedSettingsClient";
@@ -43,6 +44,7 @@ function WalletConnectSignWrapper() {
 export default function App() {
   return (
     <HashRouter>
+      <WalletConnectRequestHandler />
       <NavBar />
       <main className="flex flex-1">
         <Routes>

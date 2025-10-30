@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import Modal from "./Modal";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { encodeFunctionData, parseUnits } from "viem";
 import useSafe from "@/app/hooks/useSafe";
 import { useSafeTxContext } from "@/app/provider/SafeTxProvider";
@@ -41,7 +41,7 @@ export default function TokenTransferModal({
   tokenBalance,
   safeAddress,
 }: TokenTransferModalProps) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { chain } = useAccount();
   const { buildSafeTransaction, getSafeTransactionHash, safeInfo } = useSafe(safeAddress as `0x${string}`);
   const { getAllTransactions } = useSafeTxContext();
@@ -166,7 +166,7 @@ export default function TokenTransferModal({
       const hash = await getSafeTransactionHash(safeTx);
 
       // Navigate to the transaction signing page
-      router.push(`/safe/${safeAddress}/tx/${hash}`);
+      navigate(`/safe/${safeAddress}/tx/${hash}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create transfer transaction");
       setIsBuilding(false);

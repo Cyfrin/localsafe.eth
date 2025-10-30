@@ -266,6 +266,11 @@ export default function TxDetailsClient({
       setBroadcastError(null);
       setShowModal(true);
       setToast({ type: "success", message: "Broadcast successful!" });
+
+      // Remove the transaction from the pending list after successful broadcast
+      if (chain?.id) {
+        removeTransaction(safeAddress, undefined, Number(safeTx.data.nonce), String(chain.id));
+      }
     } catch (err) {
       setBroadcastError(err instanceof Error ? err.message : String(err));
       setShowModal(true);

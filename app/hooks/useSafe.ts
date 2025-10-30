@@ -42,6 +42,17 @@ const SAFE_ABI = [
     type: "function",
   },
   {
+    inputs: [
+      { name: "prevOwner", type: "address" },
+      { name: "oldOwner", type: "address" },
+      { name: "newOwner", type: "address" },
+    ],
+    name: "swapOwner",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
     inputs: [{ name: "_threshold", type: "uint256" }],
     name: "changeThreshold",
     outputs: [],
@@ -684,8 +695,12 @@ export default function useSafe(safeAddress: `0x${string}`) {
         // Get current owners list
         let currentOwners = [...safeInfo.owners];
 
-        // Create remove transactions
-        for (const removal of removals) {
+        // Check if we can use swapOwner (1 removal + 1 addition)
+        if (removals.length === 1 && additions.length === 1) {
+          // Use swapOwner instead of removeOwner + addOwnerWithThreshold
+          const removal = removals[0];
+          const addition = additions[0];
+
           const ownerIndex = currentOwners.findIndex(
             (o) => o.toLowerCase() === removal.address.toLowerCase()
           );
@@ -700,30 +715,11 @@ export default function useSafe(safeAddress: `0x${string}`) {
               ? ("0x0000000000000000000000000000000000000001" as Address)
               : currentOwners[ownerIndex - 1];
 
-          // For removals, we use current threshold (will be changed later)
+          // Encode the swapOwner function call
           const data = encodeFunctionData({
             abi: SAFE_ABI,
-            functionName: "removeOwner",
-            args: [prevOwner, removal.address, BigInt(safeInfo.threshold)],
-          });
-
-          transactions.push({
-            to: safeAddress,
-            value: "0",
-            data,
-            operation: 0,
-          });
-
-          // Update our local owners list for the next iteration
-          currentOwners = currentOwners.filter((_, i) => i !== ownerIndex);
-        }
-
-        // Create add transactions
-        for (const addition of additions) {
-          const data = encodeFunctionData({
-            abi: SAFE_ABI,
-            functionName: "addOwnerWithThreshold",
-            args: [addition.address, BigInt(safeInfo.threshold)],
+            functionName: "swapOwner",
+            args: [prevOwner, removal.address, addition.address],
           });
 
           transactions.push({
@@ -734,7 +730,62 @@ export default function useSafe(safeAddress: `0x${string}`) {
           });
 
           // Update our local owners list
+          currentOwners = currentOwners.filter((_, i) => i !== ownerIndex);
           currentOwners.push(addition.address);
+        } else {
+          // Use separate removeOwner and addOwnerWithThreshold transactions
+          // Create remove transactions
+          for (const removal of removals) {
+            const ownerIndex = currentOwners.findIndex(
+              (o) => o.toLowerCase() === removal.address.toLowerCase()
+            );
+
+            if (ownerIndex === -1) {
+              throw new Error(`Owner ${removal.address} not found`);
+            }
+
+            // Get the previous owner in the linked list
+            const prevOwner =
+              ownerIndex === 0
+                ? ("0x0000000000000000000000000000000000000001" as Address)
+                : currentOwners[ownerIndex - 1];
+
+            // For removals, we use current threshold (will be changed later)
+            const data = encodeFunctionData({
+              abi: SAFE_ABI,
+              functionName: "removeOwner",
+              args: [prevOwner, removal.address, BigInt(safeInfo.threshold)],
+            });
+
+            transactions.push({
+              to: safeAddress,
+              value: "0",
+              data,
+              operation: 0,
+            });
+
+            // Update our local owners list for the next iteration
+            currentOwners = currentOwners.filter((_, i) => i !== ownerIndex);
+          }
+
+          // Create add transactions
+          for (const addition of additions) {
+            const data = encodeFunctionData({
+              abi: SAFE_ABI,
+              functionName: "addOwnerWithThreshold",
+              args: [addition.address, BigInt(safeInfo.threshold)],
+            });
+
+            transactions.push({
+              to: safeAddress,
+              value: "0",
+              data,
+              operation: 0,
+            });
+
+            // Update our local owners list
+            currentOwners.push(addition.address);
+          }
         }
 
         // Finally, change threshold if it's different
