@@ -70,9 +70,10 @@ export default function AdvancedSettingsClient() {
     setStorageItems(items);
   };
 
-  const handleEdit = (key: string, value: string) => {
+  const handleEdit = (key: string, value: string, isValid: boolean, parsed: any) => {
     setEditingKey(key);
-    setEditValue(value);
+    // If it's valid JSON, format it with indentation; otherwise use raw value
+    setEditValue(isValid ? JSON.stringify(parsed, null, 2) : value);
   };
 
   const handleSave = () => {
@@ -249,7 +250,7 @@ export default function AdvancedSettingsClient() {
                           <>
                             <button
                               className="btn btn-ghost btn-xs"
-                              onClick={() => handleEdit(item.key, item.value)}
+                              onClick={() => handleEdit(item.key, item.value, item.isValid, item.parsed)}
                             >
                               Edit
                             </button>
@@ -282,7 +283,7 @@ export default function AdvancedSettingsClient() {
                     <div className="mt-2">
                       {isEditing ? (
                         <textarea
-                          className="textarea textarea-bordered w-full font-mono text-xs"
+                          className="textarea textarea-bordered w-full font-mono text-xs p-3 min-h-64"
                           rows={10}
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
