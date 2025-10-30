@@ -84,7 +84,7 @@ export default function DeploymentModal({
               {selectedNetwork &&
               selectedNetwork.blockExplorers?.default?.url ? (
                 <a
-                  href={`${selectedNetwork.blockExplorers.default.url}/tx/${txHash}`}
+                  href={`${selectedNetwork.blockExplorers.default.url}/tx/${encodeURIComponent(txHash)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="link link-primary ml-2"

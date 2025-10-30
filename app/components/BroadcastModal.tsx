@@ -57,7 +57,7 @@ const BroadcastModal: React.FC<BroadcastModalProps> = ({
               <span className="font-semibold">Transaction Hash:</span>
               {blockExplorerUrl ? (
                 <a
-                  href={`${blockExplorerUrl}/tx/${txHash}`}
+                  href={`${blockExplorerUrl}/tx/${encodeURIComponent(txHash)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="link link-primary ml-2"

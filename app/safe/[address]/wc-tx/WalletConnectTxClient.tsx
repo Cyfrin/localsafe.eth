@@ -250,7 +250,7 @@ export default function WalletConnectTxClient({
                     <DataPreview value={txParams.data} />
                     {chain && (
                       <a
-                        href={`https://tools.cyfrin.io/abi-encoding?data=${txParams.data}`}
+                        href={`https://tools.cyfrin.io/abi-encoding?data=${encodeURIComponent(txParams.data)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="btn btn-xs btn-outline"

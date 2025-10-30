@@ -555,7 +555,7 @@ export default function TxDetailsClient({
                         <DataPreview value={safeTx.data.data} />
                         {chain && (
                           <a
-                            href={`https://tools.cyfrin.io/abi-encoding?data=${safeTx.data.data}`}
+                            href={`https://tools.cyfrin.io/abi-encoding?data=${encodeURIComponent(safeTx.data.data)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="btn btn-xs btn-outline"
@@ -654,7 +654,7 @@ export default function TxDetailsClient({
                   <div className="flex items-center justify-between">
                     <div className="divider">EIP-712 Signature Data</div>
                     <a
-                      href={`https://tools.cyfrin.io/safe-hash?safeAddress=${safeAddress}&chainId=${getChainNameForCyfrin(chain.id)}&safeVersion=${safeInfo?.version || "1.4.1"}&nonce=${safeTx.data.nonce}&to=${safeTx.data.to}&value=${safeTx.data.value}&data=${safeTx.data.data}&operation=${safeTx.data.operation}&safeTxGas=${safeTx.data.safeTxGas}&baseGas=${safeTx.data.baseGas}&gasPrice=${safeTx.data.gasPrice}&gasToken=${safeTx.data.gasToken}&refundReceiver=${safeTx.data.refundReceiver}`}
+                      href={`https://tools.cyfrin.io/safe-hash?safeAddress=${encodeURIComponent(safeAddress)}&chainId=${encodeURIComponent(getChainNameForCyfrin(chain.id))}&safeVersion=${encodeURIComponent(safeInfo?.version || "1.4.1")}&nonce=${encodeURIComponent(safeTx.data.nonce)}&to=${encodeURIComponent(safeTx.data.to)}&value=${encodeURIComponent(safeTx.data.value)}&data=${encodeURIComponent(safeTx.data.data)}&operation=${encodeURIComponent(safeTx.data.operation)}&safeTxGas=${encodeURIComponent(safeTx.data.safeTxGas)}&baseGas=${encodeURIComponent(safeTx.data.baseGas)}&gasPrice=${encodeURIComponent(safeTx.data.gasPrice)}&gasToken=${encodeURIComponent(safeTx.data.gasToken)}&refundReceiver=${encodeURIComponent(safeTx.data.refundReceiver)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-xs btn-outline whitespace-nowrap"

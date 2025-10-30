@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
 
@@ -172,9 +173,9 @@ export default function AdvancedSettingsClient() {
   return (
     <AppSection>
       <div className="mb-4">
-        <a href="/accounts" className="btn btn-ghost btn-sm">
+        <Link to="/accounts" className="btn btn-ghost btn-sm">
           ← Back to Accounts
-        </a>
+        </Link>
       </div>
       <AppCard title="Advanced Settings">
         <div className="flex flex-col gap-4">
