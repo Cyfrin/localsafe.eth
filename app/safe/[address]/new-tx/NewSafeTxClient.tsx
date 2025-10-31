@@ -98,6 +98,10 @@ export default function NewSafeTxClient({
   const { getAllTransactions } = useSafeTxContext();
   const toast = useToast();
 
+  // Calculate chain ID for localStorage and transaction queries
+  const chainId = chain?.id ? String(chain.id) : undefined;
+  const storageKey = `MSIGUI_draftTx_${chainId || "unknown"}_${safeAddress}`;
+
   // Form state
   const [to, setTo] = useState("");
   const [value, setValue] = useState("");
@@ -126,8 +130,66 @@ export default function NewSafeTxClient({
     }[]
   >([]);
 
-  // Calculate next available nonce
-  const chainId = chain?.id ? String(chain.id) : undefined;
+  // Load form state from localStorage on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setTo(parsed.to || "");
+        setValue(parsed.value || "");
+        setData(parsed.data || "");
+        setShowDataHex(parsed.showDataHex || false);
+        setAbiJson(parsed.abiJson || "");
+        setSelectedMethod(parsed.selectedMethod || "");
+        setInputValues(parsed.inputValues || {});
+        setTransactions(parsed.transactions || []);
+
+        // Restore ABI methods if ABI was saved
+        if (parsed.abiJson) {
+          setAbiMethods(parseAbiMethodsFromJson(parsed.abiJson));
+        }
+
+        // Restore method inputs if method was selected
+        if (parsed.selectedMethod && parsed.abiJson) {
+          try {
+            const abi = JSON.parse(parsed.abiJson);
+            setMethodInputs(getAbiMethodInputs(abi, parsed.selectedMethod));
+          } catch {
+            // Invalid ABI, ignore
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load draft transaction from localStorage:", err);
+    }
+  }, [storageKey]);
+
+  // Save form state to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const formState = {
+      to,
+      value,
+      data,
+      showDataHex,
+      abiJson,
+      selectedMethod,
+      inputValues,
+      transactions,
+    };
+
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(formState));
+    } catch (err) {
+      console.error("Failed to save draft transaction to localStorage:", err);
+    }
+  }, [to, value, data, showDataHex, abiJson, selectedMethod, inputValues, transactions, storageKey]);
+
+  // Get queued transactions for nonce calculation
   const queuedTransactions = getAllTransactions(safeAddress as `0x${string}`, chainId);
   const nextAvailableNonce = React.useMemo(() => {
     if (!safeInfo) return 0;
@@ -237,6 +299,10 @@ export default function NewSafeTxClient({
         return;
       }
       const hash = await getSafeTransactionHash(safeTx);
+
+      // Clear the draft from localStorage
+      localStorage.removeItem(storageKey);
+
       // Redirect to tx details page
       navigate(`/safe/${safeAddress}/tx/${hash}`);
     } catch (err) {
@@ -541,7 +607,7 @@ export default function NewSafeTxClient({
                     />
                   </svg>
                   <span>
-                    Calldata has been manually edited and may differ from the auto-generated version.
+                    Calldata has been manually edited and may differ from the auto-generated calldata based on the ABI.
                   </span>
                 </div>
               )}
