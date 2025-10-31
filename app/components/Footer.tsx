@@ -1,35 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
 import GithubSvg from "../assets/svg/GithubSvg";
 import poweredByCyfrinDark from "../assets/svg/powered-by-cyfrin-dark.png";
 import poweredByCyfrinBright from "../assets/svg/powered-by-cyfrin-bright.png";
 import packageJson from "../../package.json";
+import { useTheme } from "../provider/ThemeProvider";
 
 export default function Footer() {
-  const [theme, setTheme] = useState<string>("light");
+  const { isDarkMode } = useTheme();
   const version =
     process.env.NEXT_PUBLIC_APP_VERSION || packageJson.version || "0.0.0";
-
-  useEffect(() => {
-    // Check initial theme
-    const initialTheme = document.documentElement.getAttribute("data-theme") || "light";
-    setTheme(initialTheme);
-
-    // Watch for theme changes
-    const observer = new MutationObserver(() => {
-      const currentTheme = document.documentElement.getAttribute("data-theme") || "light";
-      setTheme(currentTheme);
-    });
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["data-theme"],
-    });
-
-    return () => observer.disconnect();
-  }, []);
 
   return (
     <footer className="footer bg-base-200 border-base-100 w-full border-t px-4 py-4">
@@ -46,7 +27,7 @@ export default function Footer() {
             className="transition-opacity hover:opacity-80"
           >
             <Image
-              src={theme === "dark" ? poweredByCyfrinDark : poweredByCyfrinBright}
+              src={isDarkMode ? poweredByCyfrinBright : poweredByCyfrinDark}
               alt="Powered by Cyfrin"
               height={32}
             />

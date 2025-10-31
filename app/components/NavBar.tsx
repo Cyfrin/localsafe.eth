@@ -12,11 +12,13 @@ import MoonSvg from "../assets/svg/MoonSvg";
 import WalletConnectSvg from "../assets/svg/WalletConnectSvg";
 import { useWalletConnect } from "../provider/WalletConnectProvider";
 import WalletConnectModal from "./WalletConnectModal";
+import { useTheme } from "../provider/ThemeProvider";
 
 export default function NavBar() {
   const { isConnected, chain, connector } = useAccount();
   const { configChains, getViemChainFromId } = useChainManager();
   const { sessions, pendingProposal } = useWalletConnect();
+  const { isDarkMode, setIsDarkMode } = useTheme();
 
   const [networkModalOpen, setNetworkModalOpen] = useState(false);
   const [wcModalOpen, setWcModalOpen] = useState(false);
@@ -139,7 +141,13 @@ export default function NavBar() {
         </button>
         <div className="divider divider-horizontal mx-1"></div>
         <label className="swap swap-rotate">
-          <input type="checkbox" className="theme-controller" value="dark" />
+          <input
+            type="checkbox"
+            className="theme-controller"
+            value="dark"
+            checked={isDarkMode}
+            onChange={() => setIsDarkMode(!isDarkMode)}
+          />
           <SunSvg />
           <MoonSvg />
         </label>
