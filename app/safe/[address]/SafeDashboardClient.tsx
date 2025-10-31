@@ -96,11 +96,11 @@ export default function SafeDashboardClient({
             const newUrl = window.location.pathname;
             window.history.replaceState({}, "", newUrl);
             // Show success message
-            alert(`Transaction imported successfully!${urlChainId && chain?.id && String(chain.id) !== urlChainId ? ` (Chain ID: ${urlChainId})` : ''}`);
+            toast.success(`Transaction imported successfully!${urlChainId && chain?.id && String(chain.id) !== urlChainId ? ` (Chain ID: ${urlChainId})` : ''}`);
           }
         } catch (e) {
           console.error("Failed to import transaction from URL:", e);
-          alert("Failed to import transaction from shared link");
+          toast.error("Failed to import transaction from shared link");
         }
       } else if (importSigParam) {
         try {
@@ -138,14 +138,14 @@ export default function SafeDashboardClient({
               const newUrl = window.location.pathname;
               window.history.replaceState({}, "", newUrl);
               // Show success message
-              alert("Signature added successfully!");
+              toast.success("Signature added successfully!");
             } else {
-              alert("Transaction not found. Please import the full transaction first.");
+              toast.error("Transaction not found. Please import the full transaction first.");
             }
           }
         } catch (e) {
           console.error("Failed to import signature from URL:", e);
-          alert("Failed to import signature from shared link");
+          toast.error("Failed to import signature from shared link");
         }
       }
     }

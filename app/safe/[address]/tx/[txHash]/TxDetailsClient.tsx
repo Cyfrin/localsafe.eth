@@ -335,7 +335,7 @@ export default function TxDetailsClient({
 
       const encoded = btoa(JSON.stringify({ tx: txData }));
       const baseUrl = window.location.origin;
-      const shareUrl = `${baseUrl}/safe/${safeAddress}?importTx=${encodeURIComponent(encoded)}&chainId=${chain.id}`;
+      const shareUrl = `${baseUrl}/#/safe/${safeAddress}?importTx=${encodeURIComponent(encoded)}&chainId=${chain.id}`;
 
       navigator.clipboard.writeText(shareUrl);
       toast.success("Share link copied to clipboard!");
@@ -376,7 +376,7 @@ export default function TxDetailsClient({
 
       const encoded = btoa(JSON.stringify({ signature: signatureData, txHash }));
       const baseUrl = window.location.origin;
-      const shareUrl = `${baseUrl}/safe/${safeAddress}?importSig=${encodeURIComponent(encoded)}&chainId=${chain.id}`;
+      const shareUrl = `${baseUrl}/#/safe/${safeAddress}?importSig=${encodeURIComponent(encoded)}&chainId=${chain.id}`;
 
       navigator.clipboard.writeText(shareUrl);
       toast.success("Signature link copied to clipboard!");
@@ -884,7 +884,8 @@ export default function TxDetailsClient({
                               handleShareSignature();
                             }}
                             disabled={!safeTx || !hasSignedThisTx}
-                            className="flex flex-col items-start py-3"
+                            className={`flex flex-col items-start py-3 ${!safeTx || !hasSignedThisTx ? 'opacity-40 cursor-not-allowed' : ''}`}
+                            title={!safeTx || !hasSignedThisTx ? 'You must sign the transaction first' : 'Share your signature with others'}
                             data-testid="tx-details-share-signature-btn"
                           >
                             <span className="font-semibold">✍️ Share Signature</span>
