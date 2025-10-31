@@ -10,6 +10,7 @@ import React, {
 import { Chain } from "wagmi/chains";
 import { WAGMI_CONFIG_NETWORKS_KEY } from "../utils/constants";
 import { WagmiProvider } from "wagmi";
+import { fallback, injected, unstable_connector } from "@wagmi/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@rainbow-me/rainbowkit/styles.css";
 import {
@@ -66,10 +67,11 @@ import mantleIcon from "../assets/chainIcons/mantle.svg";
 import hardhatIcon from "../assets/chainIcons/hardhat.svg";
 
 // Helper to add icon URLs to chains
-const addChainIcon = (chain: Chain, iconUrl: string): Chain => ({
-  ...chain,
-  iconUrl,
-} as Chain);
+const addChainIcon = (chain: Chain, iconUrl: string): Chain =>
+  ({
+    ...chain,
+    iconUrl,
+  }) as Chain;
 
 // Default chains that should always be available with local SVG icons
 const DEFAULT_CHAINS: Chain[] = [
@@ -150,44 +152,35 @@ export const WagmiConfigProvider: React.FC<{
 
     // Create transports object that uses wallet provider's RPC (EIP-1193)
     // This ensures we use the user's wallet RPC instead of public RPC endpoints
-    const transports = configChains.reduce((acc, chain) => {
-      // http() with no URL uses the wallet's provider via window.ethereum (EIP-1193)
-      // Falls back to chain's default RPC only if wallet doesn't support the chain
-      acc[chain.id] = http();
-      return acc;
-    }, {} as Record<number, ReturnType<typeof http>>);
+    const transports = configChains.reduce(
+      (acc, chain) => {
+        // Fallback to public RPC if connector doesn't respond
+        acc[chain.id] = fallback([unstable_connector(injected), http()]);
+        return acc;
+      },
+      {} as Record<number, ReturnType<typeof fallback>>,
+    );
 
     // Configure wallets explicitly to exclude Coinbase Wallet (which phones home)
     const connectors = connectorsForWallets(
       [
         {
           groupName: "Popular",
-          wallets: [
-            metaMaskWallet,
-            rabbyWallet,
-            rainbowWallet,
-            phantomWallet,
-          ],
+          wallets: [metaMaskWallet, rabbyWallet, rainbowWallet, phantomWallet],
         },
         {
           groupName: "Hardware",
-          wallets: [
-            ledgerWallet,
-            oneKeyWallet,
-          ],
+          wallets: [ledgerWallet, oneKeyWallet],
         },
         {
           groupName: "More",
-          wallets: [
-            walletConnectWallet,
-            injectedWallet,
-          ],
+          wallets: [walletConnectWallet, injectedWallet],
         },
       ],
       {
         appName: "localsafe.eth",
         projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
-      }
+      },
     );
 
     return createConfig({
