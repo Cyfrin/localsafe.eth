@@ -22,6 +22,7 @@ import TokenBalancesSection from "@/app/components/TokenBalancesSection";
 import ManageOwnersModal from "@/app/components/ManageOwnersModal";
 import ConfigureMultiSendModal from "@/app/components/ConfigureMultiSendModal";
 import { useSafeWalletContext } from "@/app/provider/SafeWalletProvider";
+import { useToast, useConfirm } from "@/app/hooks/useToast";
 
 /**
  * SafeDashboardClient component that displays the dashboard for a specific safe, including its details and actions.
@@ -53,6 +54,8 @@ export default function SafeDashboardClient({
   // Hooks
   const { exportTx, importTx, getAllTransactions, saveTransaction, removeTransaction} = useSafeTxContext();
   const { setSafeMultiSendConfig, getSafeMultiSendConfig } = useSafeWalletContext();
+  const toast = useToast();
+  const { confirm } = useConfirm();
 
   // Modal state for deployment
   const [modalOpen, setModalOpen] = useState(false);
@@ -290,13 +293,19 @@ export default function SafeDashboardClient({
   }
 
   // Handle transaction deletion
-  function handleDeleteTransaction(txHash: string, nonce: number) {
-    if (confirm("Are you sure you want to delete this transaction?")) {
+  async function handleDeleteTransaction(txHash: string, nonce: number) {
+    const confirmed = await confirm(
+      "Are you sure you want to delete this transaction? This action cannot be undone.",
+      "Delete Transaction"
+    );
+
+    if (confirmed) {
       const chainId = chain?.id ? String(chain.id) : undefined;
       removeTransaction(safeAddress, txHash, nonce, chainId);
       // Filter out the deleted transaction from the current list
       const updatedTxs = allTxs.filter(({ hash }) => hash !== txHash);
       setAllTxs(updatedTxs);
+      toast.success("Transaction deleted successfully");
     }
   }
 
