@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useState, useCallback, useEffect, ReactNode } from "react";
 import ToastContainer from "../components/ToastContainer";
 import { ToastType } from "../components/Toast";
 
@@ -86,7 +86,8 @@ export default function ToastProvider({ children }: ToastProviderProps) {
 
   const handleConfirm = useCallback((value: boolean) => {
     setConfirmState((prev) => {
-      prev.resolve?.(value);
+      const { resolve } = prev;
+      setTimeout(() => resolve?.(value), 0);
       return {
         isOpen: false,
         message: "",
@@ -95,6 +96,19 @@ export default function ToastProvider({ children }: ToastProviderProps) {
       };
     });
   }, []);
+
+  useEffect(() => {
+    if (!confirmState.isOpen) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleConfirm(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [confirmState.isOpen, handleConfirm]);
 
   return (
     <ToastContext.Provider value={{ success, error, warning, info }}>
@@ -105,11 +119,17 @@ export default function ToastProvider({ children }: ToastProviderProps) {
         {/* Confirm Modal */}
         {confirmState.isOpen && (
           <div className="modal modal-open">
-            <div className="modal-box">
-              <h3 className="font-bold text-lg">
+            <div
+              className="modal-box"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="modal-title"
+              aria-describedby="modal-description"
+            >
+              <h3 id="modal-title" className="font-bold text-lg">
                 {confirmState.title || "Confirm"}
               </h3>
-              <p className="py-4">{confirmState.message}</p>
+              <p id="modal-description" className="py-4">{confirmState.message}</p>
               <div className="modal-action">
                 <button
                   className="btn btn-ghost"

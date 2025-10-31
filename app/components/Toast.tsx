@@ -19,7 +19,8 @@ export default function Toast({ id, type, message, duration = 5000, onClose }: T
 
       return () => clearTimeout(timer);
     }
-  }, [id, duration, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, duration]);
 
   const alertClass = {
     success: "alert-success",
@@ -92,7 +93,12 @@ export default function Toast({ id, type, message, duration = 5000, onClose }: T
   }[type];
 
   return (
-    <div className={`alert ${alertClass} shadow-lg mb-2`}>
+    <div
+      className={`alert ${alertClass} shadow-lg mb-2 animate-slide-in`}
+      role="alert"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       {icon}
       <span>{message}</span>
       <button

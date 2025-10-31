@@ -4,13 +4,14 @@ import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
 import { useNavigate, Link } from "react-router-dom";
 import useSafe from "@/app/hooks/useSafe";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { EthSafeTransaction, EthSafeSignature } from "@safe-global/protocol-kit";
 import { useSafeTxContext } from "@/app/provider/SafeTxProvider";
 import DataPreview from "@/app/components/DataPreview";
 import { BroadcastModal } from "@/app/components/BroadcastModal";
 import { useAccount } from "wagmi";
 import { ethers } from "ethers";
+import { useToast } from "@/app/hooks/useToast";
 
 /**
  * Maps chain IDs to chain names expected by Cyfrin tools
@@ -66,20 +67,15 @@ export default function TxDetailsClient({
     kit,
   } = useSafe(safeAddress);
   const { removeTransaction, getAllTransactions, saveTransaction } = useSafeTxContext();
+  const toast = useToast();
 
-  // Refs and state
-  const toastRef = useRef<HTMLDivElement | null>(null);
-
+  // State
   const [showModal, setShowModal] = useState(false);
   const [broadcastHash, setBroadcastHash] = useState<string | null>(null);
   const [broadcastError, setBroadcastError] = useState<string | null>(null);
   const [safeTx, setSafeTx] = useState<EthSafeTransaction | null>(null);
   const [signing, setSigning] = useState(false);
   const [broadcasting, setBroadcasting] = useState(false);
-  const [toast, setToast] = useState<{
-    type: "success" | "error" | "info";
-    message: string;
-  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAddSigModal, setShowAddSigModal] = useState(false);
   const [signerAddress, setSignerAddress] = useState("");
@@ -158,8 +154,7 @@ export default function TxDetailsClient({
         if (!cancelled) setSafeTx(matchingTx);
       } catch {
         if (!cancelled) {
-          setToast({ type: "error", message: "Could not load transaction" });
-          setTimeout(() => setToast(null), 3000);
+          toast.error("Could not load transaction");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -241,17 +236,16 @@ export default function TxDetailsClient({
     try {
       const signedTx = await signSafeTransaction(safeTx);
       if (!signedTx) {
-        setToast({ type: "error", message: "Signing failed" });
+        toast.error("Signing failed");
       } else {
-        setToast({ type: "success", message: "Signature added!" });
+        toast.success("Signature added!");
         setSafeTx(signedTx);
       }
     } catch (e) {
       console.error("Signing error:", e);
-      setToast({ type: "error", message: "Signing failed" });
+      toast.error("Signing failed");
     }
     setSigning(false);
-    setTimeout(() => setToast(null), 3000);
   }
 
   /**
@@ -271,7 +265,7 @@ export default function TxDetailsClient({
       setBroadcastHash(txHash || null);
       setBroadcastError(null);
       setShowModal(true);
-      setToast({ type: "success", message: "Broadcast successful!" });
+      toast.success("Broadcast successful!");
 
       // Remove the transaction from the pending list after successful broadcast
       if (chain?.id) {
@@ -280,10 +274,9 @@ export default function TxDetailsClient({
     } catch (err) {
       setBroadcastError(err instanceof Error ? err.message : String(err));
       setShowModal(true);
-      setToast({ type: "error", message: "Broadcast failed" });
+      toast.error("Broadcast failed");
     }
     setBroadcasting(false);
-    setTimeout(() => setToast(null), 3000);
   }
 
   /**
@@ -314,12 +307,10 @@ export default function TxDetailsClient({
       a.click();
       URL.revokeObjectURL(url);
 
-      setToast({ type: "success", message: "Transaction exported!" });
-      setTimeout(() => setToast(null), 3000);
+      toast.success("Transaction exported!");
     } catch (e: unknown) {
       console.error("Export error:", e);
-      setToast({ type: "error", message: "Export failed" });
-      setTimeout(() => setToast(null), 3000);
+      toast.error("Export failed");
     }
   }
 
@@ -347,12 +338,10 @@ export default function TxDetailsClient({
       const shareUrl = `${baseUrl}/safe/${safeAddress}?importTx=${encodeURIComponent(encoded)}&chainId=${chain.id}`;
 
       navigator.clipboard.writeText(shareUrl);
-      setToast({ type: "success", message: "Share link copied to clipboard!" });
-      setTimeout(() => setToast(null), 3000);
+      toast.success("Share link copied to clipboard!");
     } catch (e: unknown) {
       console.error("Share link error:", e);
-      setToast({ type: "error", message: "Failed to create share link" });
-      setTimeout(() => setToast(null), 3000);
+      toast.error("Failed to create share link");
     }
   }
 
@@ -363,8 +352,7 @@ export default function TxDetailsClient({
     if (!safeTx || !chain) return;
     try {
       if (!connectedAddress) {
-        setToast({ type: "error", message: "No wallet connected" });
-        setTimeout(() => setToast(null), 3000);
+        toast.error("No wallet connected");
         return;
       }
 
@@ -376,8 +364,7 @@ export default function TxDetailsClient({
         : null;
 
       if (!userSignature) {
-        setToast({ type: "error", message: "You haven't signed this transaction yet" });
-        setTimeout(() => setToast(null), 3000);
+        toast.error("You haven't signed this transaction yet");
         return;
       }
 
@@ -392,12 +379,10 @@ export default function TxDetailsClient({
       const shareUrl = `${baseUrl}/safe/${safeAddress}?importSig=${encodeURIComponent(encoded)}&chainId=${chain.id}`;
 
       navigator.clipboard.writeText(shareUrl);
-      setToast({ type: "success", message: "Signature link copied to clipboard!" });
-      setTimeout(() => setToast(null), 3000);
+      toast.success("Signature link copied to clipboard!");
     } catch (e: unknown) {
       console.error("Share signature error:", e);
-      setToast({ type: "error", message: "Failed to create signature link" });
-      setTimeout(() => setToast(null), 3000);
+      toast.error("Failed to create signature link");
     }
   }
 
@@ -409,22 +394,19 @@ export default function TxDetailsClient({
     try {
       // Validate inputs
       if (!signerAddress || !signatureData) {
-        setToast({ type: "error", message: "Signer address and signature data are required" });
-        setTimeout(() => setToast(null), 3000);
+        toast.error("Signer address and signature data are required");
         return;
       }
 
       // Basic validation for address format
       if (!signerAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-        setToast({ type: "error", message: "Invalid signer address format" });
-        setTimeout(() => setToast(null), 3000);
+        toast.error("Invalid signer address format");
         return;
       }
 
       // Basic validation for signature format
       if (!signatureData.match(/^0x[a-fA-F0-9]+$/)) {
-        setToast({ type: "error", message: "Invalid signature data format" });
-        setTimeout(() => setToast(null), 3000);
+        toast.error("Invalid signature data format");
         return;
       }
 
@@ -456,12 +438,10 @@ export default function TxDetailsClient({
       setSignerAddress("");
       setSignatureData("");
 
-      setToast({ type: "success", message: "Signature added successfully!" });
-      setTimeout(() => setToast(null), 3000);
+      toast.success("Signature added successfully!");
     } catch (e: unknown) {
       console.error("Add signature error:", e);
-      setToast({ type: "error", message: "Failed to add signature" });
-      setTimeout(() => setToast(null), 3000);
+      toast.error("Failed to add signature");
     }
   }
 
@@ -1027,24 +1007,6 @@ export default function TxDetailsClient({
               ) : (
                 "Transaction not found."
               )}
-            </div>
-          )}
-          {/* DaisyUI toast notification */}
-          {toast && (
-            <div
-              ref={toastRef}
-              className={`toast toast-center z-50`}
-              style={{
-                position: "fixed",
-                left: 0,
-                right: 0,
-                top: "2rem",
-                margin: "auto",
-                width: "fit-content",
-              }}
-              data-testid="tx-details-toast"
-            >
-              <div className={`alert alert-${toast.type}`}>{toast.message}</div>
             </div>
           )}
         </div>
