@@ -14,7 +14,8 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
   const [activeTab, setActiveTab] = useState(0);
   const [pairingCode, setPairingCode] = useState("");
   const [apiKeyInput, setApiKeyInput] = useState("");
-  const { address: safeAddress } = useParams<{ address: string }>();
+  const params = useParams<{ address: string }>();
+  const safeAddress = params.address;
   const { chain } = useAccount();
 
   const {
@@ -48,9 +49,11 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
     if (pairingCode.trim() !== "") {
       try {
         await pair(pairingCode.trim());
-        setPairingCode("");
+        setPairingCode(""); // Clear on success - pairing codes are single-use
       } catch (e) {
         console.error("Failed to pair:", e);
+        alert(`Failed to pair: ${e instanceof Error ? e.message : String(e)}`);
+        // Don't clear input on failure - let user see/fix their pairing code
       }
     }
   };
@@ -68,15 +71,9 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
 
     try {
       const proposal = pendingProposal as any;
-      console.log("🟢 Full proposal:", proposal);
 
       const requiredNamespaces = proposal.requiredNamespaces || {};
       const optionalNamespaces = proposal.optionalNamespaces || {};
-
-      console.log("🟢 Required namespaces:", requiredNamespaces);
-      console.log("🟢 Optional namespaces:", optionalNamespaces);
-      console.log("🟢 Safe address being used:", safeAddress);
-      console.log("🟢 Chain ID:", chain?.id);
 
       const namespaces: Record<string, any> = {};
 
@@ -88,8 +85,6 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
 
         // Build accounts array - ensure proper format
         const accounts = chains.map((chainId: string) => `${chainId}:${safeAddress}`);
-
-        console.log(`🟢 Namespace ${key} accounts:`, accounts);
 
         namespaces[key] = {
           accounts,
@@ -125,8 +120,6 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
           };
         }
       });
-
-      console.log("Constructed namespaces:", namespaces);
 
       await approveSession(namespaces);
     } catch (e) {

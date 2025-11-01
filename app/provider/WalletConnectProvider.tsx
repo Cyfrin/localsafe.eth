@@ -91,21 +91,15 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // Set up event listeners
         wallet.on("session_proposal", (args: any) => {
-          console.log("Session proposal received:", args);
           setPendingProposal(args.params);
           setError(null);
         });
 
         wallet.on("session_request", (request: any) => {
-          console.log("🔵 WalletConnect: session_request event fired!");
-          console.log("🔵 Full request object:", request);
-          console.log("🔵 Request ID:", request.id);
-          console.log("🔵 Request method:", request.params?.request?.method);
           setPendingRequest(request);
         });
 
         wallet.on("session_delete", ({ topic }: { topic: string }) => {
-          console.log("Session deleted:", topic);
           const activeSessions = wallet.getActiveSessions();
           setSessions(Object.values(activeSessions));
         });
@@ -149,7 +143,6 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
           id: pendingProposal.id,
           namespaces,
         });
-        console.log("Session approved:", session);
 
         // Update sessions
         const activeSessions = web3wallet.getActiveSessions();
@@ -221,22 +214,15 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("No pending request");
       }
       try {
-        console.log("🟢 Sending approval to WalletConnect:", {
-          topic,
-          response,
-          requestId: pendingRequest.id,
-        });
-
         await web3wallet.respondSessionRequest({
           topic,
           response,
         });
 
-        console.log("🟢 Approval sent successfully");
         setPendingRequest(null);
         setError(null);
       } catch (err) {
-        console.error("🟢 Failed to approve request:", err);
+        console.error("Failed to approve request:", err);
         setError(err instanceof Error ? err : new Error(String(err)));
         throw err;
       }
@@ -262,22 +248,16 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
           jsonrpc: "2.0",
           error,
         };
-        console.log("🔴 Sending rejection to WalletConnect:", {
-          topic,
-          response,
-          requestId: id,
-        });
 
         await web3wallet.respondSessionRequest({
           topic,
           response,
         });
 
-        console.log("🔴 Rejection sent successfully");
         setPendingRequest(null);
         setError(null);
       } catch (err) {
-        console.error("🔴 Failed to reject request:", err);
+        console.error("Failed to reject request:", err);
         setError(err instanceof Error ? err : new Error(String(err)));
         throw err;
       }
@@ -286,7 +266,6 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const clearPendingRequest = useCallback(() => {
-    console.log("🟣 Manually clearing pending request");
     setPendingRequest(null);
     if (typeof window !== "undefined") {
       sessionStorage.removeItem("wc-pending-request");

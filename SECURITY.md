@@ -2,12 +2,11 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+*As this project is in active development, only the latest version is supported. We will move to a phase where we have an LTS policy once we reach version 1.0.0.*
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.2.3   | :white_check_mark: |
+| Version                             | Supported          |
+| ----------------------------------- | ------------------ |
+| (latest according to this git repo) | :white_check_mark: |
 
 ## Reporting a Vulnerability
 

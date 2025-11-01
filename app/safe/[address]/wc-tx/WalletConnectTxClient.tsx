@@ -106,11 +106,6 @@ export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0
   const handleReject = async () => {
     if (!currentRequest) return;
 
-    console.log("🔴 handleReject called");
-    console.log("🔴 currentRequest:", currentRequest);
-    console.log("🔴 currentRequest.topic:", currentRequest.topic);
-    console.log("🔴 currentRequest.id:", currentRequest.id);
-
     setIsProcessing(true);
     try {
       await rejectRequest(
@@ -121,9 +116,8 @@ export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0
         },
         currentRequest.id, // Pass the request ID
       );
-      console.log("🔴 rejectRequest completed successfully");
     } catch (error) {
-      console.error("🔴 Failed to reject transaction:", error);
+      console.error("Failed to reject transaction:", error);
       alert(`Failed to reject transaction: ${error instanceof Error ? error.message : String(error)}`);
       setIsProcessing(false);
       return;
@@ -162,7 +156,6 @@ export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0
           onClick={async () => {
             if (currentRequest) {
               try {
-                console.log("🔴 Rejecting request:", currentRequest.id);
                 await rejectRequest(
                   currentRequest.topic,
                   {
@@ -171,9 +164,8 @@ export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0
                   },
                   currentRequest.id, // Pass the request ID
                 );
-                console.log("🔴 Request rejected successfully");
               } catch (error) {
-                console.error("🔴 Failed to reject request:", error);
+                console.error("Failed to reject request:", error);
               } finally {
                 // Always clear pending request state as a safety measure
                 clearPendingRequest();

@@ -1,6 +1,6 @@
 "use client";
 
-import { HashRouter, Routes, Route, useParams } from "react-router-dom";
+import { HashRouter, Routes, Route, useParams, Outlet } from "react-router-dom";
 import NavBar from "./components/NavBar";
 import Footer from "./components/Footer";
 import WalletConnectRequestHandler from "./components/WalletConnectRequestHandler";
@@ -41,13 +41,25 @@ function WalletConnectSignWrapper() {
   return <WalletConnectSignClient safeAddress={address as `0x${string}`} />;
 }
 
-export default function App() {
+// Layout component that wraps all routes with NavBar and Footer
+function Layout() {
   return (
-    <HashRouter>
+    <>
       <WalletConnectRequestHandler />
       <NavBar />
       <main className="flex flex-1">
-        <Routes>
+        <Outlet />
+      </main>
+      <Footer />
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <HashRouter>
+      <Routes>
+        <Route element={<Layout />}>
           {/* Static routes */}
           <Route path="/" element={<HomePageClient />} />
           <Route path="/accounts" element={<AccountsSafeClient />} />
@@ -61,9 +73,8 @@ export default function App() {
           <Route path="/safe/:address/tx/:txHash" element={<TxDetailsWrapper />} />
           <Route path="/safe/:address/wc-tx" element={<WalletConnectTxWrapper />} />
           <Route path="/safe/:address/wc-sign" element={<WalletConnectSignWrapper />} />
-        </Routes>
-      </main>
-      <Footer />
+        </Route>
+      </Routes>
     </HashRouter>
   );
 }
