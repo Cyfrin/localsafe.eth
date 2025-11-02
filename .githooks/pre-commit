@@ -1,0 +1,5 @@
+#!/bin/sh
+echo "Running pre-commit checks..."
+
+pnpm run format > /dev/null
+echo "✓ Formatting finished"
