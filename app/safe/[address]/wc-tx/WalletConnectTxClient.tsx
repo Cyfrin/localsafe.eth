@@ -13,7 +13,7 @@ import { useAccount } from "wagmi";
 export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0x${string}` }) {
   const navigate = useNavigate();
   const { chain } = useAccount();
-  const { pendingRequest, rejectRequest, clearPendingRequest } = useWalletConnect();
+  const { pendingRequest, approveRequest, rejectRequest, clearPendingRequest } = useWalletConnect();
   const { buildSafeTransaction, kit, safeInfo } = useSafe(safeAddress);
 
   const [txParams, setTxParams] = useState<any>(null);
@@ -82,11 +82,17 @@ export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0
       // Get the Safe transaction hash
       const safeTxHash = await kit?.getTransactionHash(safeTx);
 
-      // For Safe wallets, we need to reject the request since we can't provide an immediate tx hash
-      // The user will sign and broadcast the Safe transaction separately
-      await rejectRequest(currentRequest.topic, {
-        code: 4001,
-        message: "Safe transaction created. Please sign and broadcast it separately.",
+      if (!safeTxHash) {
+        throw new Error("Failed to get Safe transaction hash");
+      }
+
+      // Approve the WalletConnect request with the Safe transaction hash
+      // Note: We're sending a safeTxHash (internal Safe hash for signature collection)
+      // not a blockchain transaction hash. The dApp will show this as "pending".
+      await approveRequest(currentRequest.topic, {
+        id: currentRequest.id,
+        jsonrpc: "2.0",
+        result: safeTxHash,
       });
 
       // Clear from sessionStorage
