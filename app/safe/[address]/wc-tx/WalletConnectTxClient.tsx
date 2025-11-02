@@ -21,6 +21,25 @@ export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0
   const [requestFromStorage, setRequestFromStorage] = useState<any>(null);
   const [customNonce, setCustomNonce] = useState<string>("");
 
+  // Flash the tab title to get user's attention
+  useEffect(() => {
+    const originalTitle = document.title || "LocalSafe";
+    let isVisible = true;
+
+    // Set initial state
+    document.title = "🔔 Sign Transaction!";
+
+    const interval = setInterval(() => {
+      document.title = isVisible ? "🔔 Sign Transaction!" : originalTitle;
+      isVisible = !isVisible;
+    }, 1000); // Flash every second
+
+    return () => {
+      clearInterval(interval);
+      document.title = originalTitle;
+    };
+  }, []);
+
   // Load request from sessionStorage if not in context
   useEffect(() => {
     if (!pendingRequest && typeof window !== "undefined") {
