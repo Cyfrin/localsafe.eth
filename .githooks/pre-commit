@@ -1,5 +1,15 @@
 #!/bin/sh
 echo "Running pre-commit checks..."
 
-pnpm run format > /dev/null
-echo "✓ Formatting finished"
+# Check formatting on staged files only
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx)$' || true)
+
+if [ -n "$STAGED_FILES" ]; then
+  echo "$STAGED_FILES" | xargs pnpm exec prettier --check
+  if [ $? -ne 0 ]; then
+    echo "❌ Formatting check failed. Run 'pnpm run format' to fix."
+    exit 1
+  fi
+fi
+
+echo "✓ Formatting check passed"
