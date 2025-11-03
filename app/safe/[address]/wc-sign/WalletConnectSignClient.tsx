@@ -301,20 +301,11 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
           messageData: newSignedMessage.data,
         });
 
-        console.log("SAFE DEBUG: About to send to WalletConnect - approveRequest", {
-          topic: currentRequest.topic,
-          id: currentRequest.id,
-          encodedSignature,
-          length: encodedSignature.length,
-        });
-
         await approveRequest(currentRequest.topic, {
           id: currentRequest.id,
           jsonrpc: "2.0",
           result: encodedSignature,
         });
-
-        console.log("SAFE DEBUG: Successfully sent to WalletConnect");
 
         // Clear from sessionStorage
         if (typeof window !== "undefined") {
