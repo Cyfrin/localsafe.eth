@@ -9,6 +9,7 @@ import AppCard from "@/app/components/AppCard";
 import DataPreview from "@/app/components/DataPreview";
 import { formatEther } from "viem";
 import { useAccount } from "wagmi";
+import type { SignClientTypes } from "@walletconnect/types";
 
 export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0x${string}` }) {
   const navigate = useNavigate();
@@ -16,9 +17,21 @@ export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0
   const { pendingRequest, approveRequest, rejectRequest, clearPendingRequest } = useWalletConnect();
   const { buildSafeTransaction, kit, safeInfo } = useSafe(safeAddress);
 
-  const [txParams, setTxParams] = useState<any>(null);
+  interface TxParams {
+    to: string;
+    value?: string;
+    data?: string;
+    gas?: string;
+    gasPrice?: string;
+    maxFeePerGas?: string;
+    maxPriorityFeePerGas?: string;
+  }
+
+  const [txParams, setTxParams] = useState<TxParams | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [requestFromStorage, setRequestFromStorage] = useState<any>(null);
+  const [requestFromStorage, setRequestFromStorage] = useState<SignClientTypes.EventArguments["session_request"] | null>(
+    null,
+  );
   const [customNonce, setCustomNonce] = useState<string>("");
 
   // Flash the tab title to get user's attention
@@ -170,8 +183,9 @@ export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0
     );
   }
 
-  const dappMetadata =
-    (currentRequest.params as any)?.proposer?.metadata || (currentRequest.verifyContext as any)?.verified?.metadata;
+  const dappMetadata = (currentRequest as unknown as {
+    params?: { proposer?: { metadata?: { icons?: string[]; name?: string; url?: string; description?: string } } };
+  })?.params?.proposer?.metadata;
 
   return (
     <AppSection testid="wc-tx-section">

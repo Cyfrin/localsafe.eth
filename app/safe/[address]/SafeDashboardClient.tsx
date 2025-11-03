@@ -41,7 +41,6 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
     unavailable,
     kit,
     deployUndeployedSafe,
-    getSafeTransactionCurrent,
     createBatchedOwnerManagementTransaction,
   } = useSafe(safeAddress);
   // Hooks
@@ -143,6 +142,7 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
     }
 
     handleSharedLinks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kit, searchParams, safeAddress, importTx, getAllTransactions, saveTransaction, chain]);
 
   // Fetch all transactions if any

@@ -7,17 +7,38 @@ import type { SessionTypes, ProposalTypes, SignClientTypes } from "@walletconnec
 const WC_PROJECT_ID_STORAGE_KEY = "walletconnect-project-id";
 const DEFAULT_PROJECT_ID = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
 
+interface NamespaceConfig {
+  accounts: string[];
+  methods: string[];
+  events: string[];
+  chains: string[];
+}
+
+interface WalletConnectResponse {
+  id: number;
+  jsonrpc: string;
+  result?: unknown;
+  error?: {
+    code: number;
+    message: string;
+  };
+}
+
 export interface WalletConnectContextType {
   web3wallet: IWalletKit | null;
   sessions: SessionTypes.Struct[];
   pendingProposal: ProposalTypes.Struct | null;
   pendingRequest: SignClientTypes.EventArguments["session_request"] | null;
   pair: (uri: string) => Promise<void>;
-  approveSession: (namespaces: Record<string, any>) => Promise<void>;
+  approveSession: (namespaces: Record<string, NamespaceConfig>) => Promise<void>;
   rejectSession: () => Promise<void>;
   disconnectSession: (topic: string) => Promise<void>;
-  approveRequest: (topic: string, response: any) => Promise<void>;
-  rejectRequest: (topic: string, error: any, requestId?: number) => Promise<void>;
+  approveRequest: (topic: string, response: WalletConnectResponse) => Promise<void>;
+  rejectRequest: (
+    topic: string,
+    error: { code: number; message: string },
+    requestId?: number,
+  ) => Promise<void>;
   clearPendingRequest: () => void;
   error: Error | null;
   isInitialized: boolean;
@@ -90,16 +111,16 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
         setSessions(Object.values(activeSessions));
 
         // Set up event listeners
-        wallet.on("session_proposal", (args: any) => {
+        wallet.on("session_proposal", (args: { params: ProposalTypes.Struct }) => {
           setPendingProposal(args.params);
           setError(null);
         });
 
-        wallet.on("session_request", (request: any) => {
+        wallet.on("session_request", (request: SignClientTypes.EventArguments["session_request"]) => {
           setPendingRequest(request);
         });
 
-        wallet.on("session_delete", ({ topic }: { topic: string }) => {
+        wallet.on("session_delete", () => {
           const activeSessions = wallet.getActiveSessions();
           setSessions(Object.values(activeSessions));
         });
@@ -134,12 +155,12 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const approveSession = useCallback(
-    async (namespaces: Record<string, any>) => {
+    async (namespaces: Record<string, NamespaceConfig>) => {
       if (!web3wallet || !pendingProposal) {
         throw new Error("No pending proposal");
       }
       try {
-        const session = await web3wallet.approveSession({
+        await web3wallet.approveSession({
           id: pendingProposal.id,
           namespaces,
         });
@@ -209,7 +230,7 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const approveRequest = useCallback(
-    async (topic: string, response: any) => {
+    async (topic: string, response: WalletConnectResponse) => {
       if (!web3wallet || !pendingRequest) {
         throw new Error("No pending request");
       }
@@ -231,7 +252,7 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const rejectRequest = useCallback(
-    async (topic: string, error: any, requestId?: number) => {
+    async (topic: string, error: { code: number; message: string }, requestId?: number) => {
       if (!web3wallet) {
         throw new Error("Web3Wallet not initialized");
       }
@@ -243,7 +264,7 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       try {
-        const response = {
+        const response: WalletConnectResponse = {
           id,
           jsonrpc: "2.0",
           error,

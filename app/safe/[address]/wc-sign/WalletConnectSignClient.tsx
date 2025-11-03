@@ -6,19 +6,18 @@ import { useWalletConnect } from "@/app/provider/WalletConnectProvider";
 import useSafe from "@/app/hooks/useSafe";
 import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
-import { useAccount, useSignMessage, useSignTypedData } from "wagmi";
+import type { SignClientTypes } from "@walletconnect/types";
 
 export default function WalletConnectSignClient({ safeAddress }: { safeAddress: `0x${string}` }) {
   const navigate = useNavigate();
   const { pendingRequest, approveRequest, rejectRequest, clearPendingRequest } = useWalletConnect();
-  const { signSafeTransaction, kit } = useSafe(safeAddress);
-  const { connector } = useAccount();
-  const { signMessageAsync } = useSignMessage();
-  const { signTypedDataAsync } = useSignTypedData();
+  const { kit } = useSafe(safeAddress);
 
-  const [signParams, setSignParams] = useState<any>(null);
+  const [signParams, setSignParams] = useState<unknown[] | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [requestFromStorage, setRequestFromStorage] = useState<any>(null);
+  const [requestFromStorage, setRequestFromStorage] = useState<SignClientTypes.EventArguments["session_request"] | null>(
+    null,
+  );
   const [method, setMethod] = useState<string>("");
 
   // Flash the tab title to get user's attention
@@ -77,13 +76,13 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
       switch (method) {
         case "personal_sign": {
           // personal_sign params: [message, address]
-          messageToSign = signParams[0];
+          messageToSign = signParams[0] as string;
           break;
         }
 
         case "eth_sign": {
           // eth_sign params: [address, message]
-          messageToSign = signParams[1];
+          messageToSign = signParams[1] as string;
           break;
         }
 
@@ -91,7 +90,7 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
         case "eth_signTypedData_v4": {
           // signTypedData params: [address, typedData]
           const typedDataString = signParams[1];
-          messageToSign = typeof typedDataString === "string" ? JSON.parse(typedDataString) : typedDataString;
+          messageToSign = typeof typedDataString === "string" ? JSON.parse(typedDataString) : (typedDataString as object);
           break;
         }
 
@@ -216,33 +215,35 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
     );
   }
 
-  const dappMetadata =
-    (currentRequest.params as any)?.proposer?.metadata || (currentRequest.verifyContext as any)?.verified?.metadata;
+  const dappMetadata = (currentRequest as unknown as {
+    params?: { proposer?: { metadata?: { icons?: string[]; name?: string; url?: string; description?: string } } };
+  })?.params?.proposer?.metadata;
 
   // Format the message for display
   let messageToDisplay = "";
   try {
     if (method === "personal_sign" || method === "eth_sign") {
-      const message = signParams[0] || signParams[1];
+      const message = (signParams[0] || signParams[1]) as string;
       // Try to decode hex message
-      if (message.startsWith("0x")) {
+      if (message && typeof message === "string" && message.startsWith("0x")) {
         try {
-          messageToDisplay = new TextDecoder().decode(
-            new Uint8Array(
-              message
-                .match(/.{1,2}/g)
-                .slice(1)
-                .map((byte: string) => parseInt(byte, 16)),
-            ),
-          );
+          const hexMatches = message.match(/.{1,2}/g);
+          if (hexMatches) {
+            messageToDisplay = new TextDecoder().decode(
+              new Uint8Array(hexMatches.slice(1).map((byte: string) => parseInt(byte, 16))),
+            );
+          } else {
+            messageToDisplay = message;
+          }
         } catch {
           messageToDisplay = message;
         }
       } else {
-        messageToDisplay = message;
+        messageToDisplay = String(message);
       }
     } else if (method === "eth_signTypedData" || method === "eth_signTypedData_v4") {
-      const typedData = typeof signParams[1] === "string" ? JSON.parse(signParams[1]) : signParams[1];
+      const typedDataRaw = signParams[1];
+      const typedData = typeof typedDataRaw === "string" ? JSON.parse(typedDataRaw) : typedDataRaw;
       messageToDisplay = JSON.stringify(typedData, null, 2);
     }
   } catch {

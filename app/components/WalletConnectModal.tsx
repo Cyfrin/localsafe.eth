@@ -21,7 +21,6 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
   const {
     projectId,
     setProjectId,
-    isInitialized,
     sessions,
     pendingProposal,
     pair,
@@ -70,18 +69,28 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
     }
 
     try {
-      const proposal = pendingProposal as any;
+      const proposal = pendingProposal;
 
-      const requiredNamespaces = proposal.requiredNamespaces || {};
-      const optionalNamespaces = proposal.optionalNamespaces || {};
+      const requiredNamespaces = (proposal as { params?: { requiredNamespaces?: Record<string, unknown> } })?.params
+        ?.requiredNamespaces || {};
+      const optionalNamespaces = (proposal as { params?: { optionalNamespaces?: Record<string, unknown> } })?.params
+        ?.optionalNamespaces || {};
 
-      const namespaces: Record<string, any> = {};
+      interface NamespaceConfig {
+        accounts: string[];
+        methods: string[];
+        events: string[];
+        chains: string[];
+      }
+
+      const namespaces: Record<string, NamespaceConfig> = {};
 
       // Process required namespaces
-      Object.entries(requiredNamespaces).forEach(([key, value]: [string, any]) => {
-        const chains = value.chains || [];
-        const methods = value.methods || [];
-        const events = value.events || [];
+      Object.entries(requiredNamespaces).forEach(([key, value]) => {
+        const namespaceValue = value as { chains?: string[]; methods?: string[]; events?: string[] };
+        const chains = namespaceValue.chains || [];
+        const methods = namespaceValue.methods || [];
+        const events = namespaceValue.events || [];
 
         // Build accounts array - ensure proper format
         const accounts = chains.map((chainId: string) => `${chainId}:${safeAddress}`);
@@ -95,27 +104,28 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
       });
 
       // Process optional namespaces if any
-      Object.entries(optionalNamespaces).forEach(([key, value]: [string, any]) => {
+      Object.entries(optionalNamespaces).forEach(([key, value]) => {
+        const namespaceValue = value as { chains?: string[]; methods?: string[]; events?: string[] };
         if (namespaces[key]) {
           // Merge with existing namespace
-          const chains = value.chains || [];
+          const chains = namespaceValue.chains || [];
           const additionalAccounts = chains
             .filter((c: string) => !namespaces[key].chains.includes(c))
             .map((chainId: string) => `${chainId}:${safeAddress}`);
 
           namespaces[key].accounts = [...namespaces[key].accounts, ...additionalAccounts];
           namespaces[key].chains = [...namespaces[key].chains, ...chains];
-          namespaces[key].methods = [...new Set([...namespaces[key].methods, ...(value.methods || [])])];
-          namespaces[key].events = [...new Set([...namespaces[key].events, ...(value.events || [])])];
+          namespaces[key].methods = [...new Set([...namespaces[key].methods, ...(namespaceValue.methods || [])])];
+          namespaces[key].events = [...new Set([...namespaces[key].events, ...(namespaceValue.events || [])])];
         } else {
           // Create new namespace entry
-          const chains = value.chains || [];
+          const chains = namespaceValue.chains || [];
           const accounts = chains.map((chainId: string) => `${chainId}:${safeAddress}`);
 
           namespaces[key] = {
             accounts,
-            methods: value.methods || [],
-            events: value.events || [],
+            methods: namespaceValue.methods || [],
+            events: namespaceValue.events || [],
             chains,
           };
         }
@@ -136,9 +146,9 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
     }
   };
 
-  const handleDisconnectSession = async (topic: string) => {
+  const handleDisconnectSession = async (sessionTopic: string) => {
     try {
-      await disconnectSession(topic);
+      await disconnectSession(sessionTopic);
     } catch (e) {
       console.error("Failed to disconnect session:", e);
     }
@@ -289,10 +299,10 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
                     <div className="space-y-4">
                       <div className="flex flex-col items-center">
                         <div className="bg-primary mb-4 flex h-16 w-16 items-center justify-center rounded-lg">
-                          {(pendingProposal as any).proposer?.metadata?.icons?.[0] ? (
+                          {(pendingProposal as unknown as { params?: { proposer?: { metadata?: { icons?: string[]; name?: string } } } })?.params?.proposer?.metadata?.icons?.[0] ? (
                             <img
-                              src={(pendingProposal as any).proposer.metadata.icons[0]}
-                              alt={(pendingProposal as any).proposer.metadata.name}
+                              src={(pendingProposal as unknown as { params?: { proposer?: { metadata?: { icons?: string[] } } } })?.params?.proposer?.metadata?.icons![0]}
+                              alt={(pendingProposal as unknown as { params?: { proposer?: { metadata?: { name?: string } } } })?.params?.proposer?.metadata?.name || "dApp"}
                               className="h-full w-full rounded-lg"
                             />
                           ) : (
@@ -300,11 +310,11 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
                           )}
                         </div>
                         <h4 className="mb-2 text-xl font-bold">
-                          {(pendingProposal as any).proposer?.metadata?.name || "Unknown dApp"} wants to connect
+                          {(pendingProposal as unknown as { params?: { proposer?: { metadata?: { name?: string } } } })?.params?.proposer?.metadata?.name || "Unknown dApp"} wants to connect
                         </h4>
-                        <p className="mb-2 text-center">{(pendingProposal as any).proposer?.metadata?.url || ""}</p>
+                        <p className="mb-2 text-center">{(pendingProposal as unknown as { params?: { proposer?: { metadata?: { url?: string } } } })?.params?.proposer?.metadata?.url || ""}</p>
                         <p className="mb-4 text-center text-sm text-gray-500">
-                          {(pendingProposal as any).proposer?.metadata?.description || ""}
+                          {(pendingProposal as unknown as { params?: { proposer?: { metadata?: { description?: string } } } })?.params?.proposer?.metadata?.description || ""}
                         </p>
                       </div>
 
@@ -316,18 +326,26 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
 
                       <div className="bg-base-200 rounded-box p-4">
                         <h5 className="mb-2 font-semibold">Requested Permissions:</h5>
-                        {Object.entries((pendingProposal as any).requiredNamespaces || {}).map(
-                          ([namespace, details]: [string, any]) => (
+                        {Object.entries(
+                          (pendingProposal as unknown as { params?: { requiredNamespaces?: Record<string, unknown> } })
+                            ?.params?.requiredNamespaces || {},
+                        ).map(([namespace, details]) => {
+                          const namespaceDetails = details as {
+                            chains?: string[];
+                            methods?: string[];
+                            events?: string[];
+                          };
+                          return (
                             <div key={namespace} className="mb-2">
                               <p className="font-medium">{namespace}:</p>
                               <div className="pl-4 text-sm">
-                                {details.chains && <p>Chains: {details.chains.join(", ")}</p>}
-                                <p>Methods: {details.methods.join(", ")}</p>
-                                <p>Events: {details.events.join(", ")}</p>
+                                {namespaceDetails.chains && <p>Chains: {namespaceDetails.chains.join(", ")}</p>}
+                                <p>Methods: {namespaceDetails.methods?.join(", ")}</p>
+                                <p>Events: {namespaceDetails.events?.join(", ")}</p>
                               </div>
                             </div>
-                          ),
-                        )}
+                          );
+                        })}
                       </div>
                     </div>
                   ) : (

@@ -3,8 +3,6 @@
 import { useEffect, useRef } from "react";
 import { useWalletConnect } from "../provider/WalletConnectProvider";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import useSafe from "../hooks/useSafe";
-import { useAccount } from "wagmi";
 
 /**
  * WalletConnectRequestHandler component that monitors for WalletConnect transaction requests

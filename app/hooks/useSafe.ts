@@ -377,7 +377,10 @@ export default function useSafe(safeAddress: `0x${string}`) {
           data: tx.data || "0x",
         }));
 
-        const options: any = {
+        const options: {
+          transactions: Array<{ to: string; value: string; data: string; operation?: number }>;
+          options?: { nonce: number };
+        } = {
           transactions: normalizedTxs,
         };
 

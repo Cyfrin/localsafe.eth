@@ -137,6 +137,7 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
     }
 
     fetchBalances();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tokens, publicClient, safeAddress, chainId]);
 
   // Fetch USD prices for tokens
