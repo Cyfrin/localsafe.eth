@@ -90,10 +90,24 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
 
       switch (method) {
         case "personal_sign": {
-          // For personal_sign, Safe SDK applies EIP-191 to the LITERAL hex string (not decoded)
-          const message = signParams[0];
-          // Apply EIP-191 hash to the literal message (hex string as-is, or plain string)
-          safeMessageMessage = ethers.hashMessage(message);
+          // For personal_sign, decode hex message first, then apply EIP-191
+          const hexMessage = signParams[0];
+          let decodedMessage: string;
+
+          if (hexMessage.startsWith("0x")) {
+            try {
+              // Decode hex to string
+              decodedMessage = ethers.toUtf8String(hexMessage);
+            } catch {
+              // If decoding fails, use the hex string as-is
+              decodedMessage = hexMessage;
+            }
+          } else {
+            decodedMessage = hexMessage;
+          }
+
+          // Apply EIP-191 hash to the decoded message
+          safeMessageMessage = ethers.hashMessage(decodedMessage);
           break;
         }
         case "eth_sign": {
@@ -131,12 +145,12 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
       const includeChainId = safeVersion >= "1.3.0";
       const domain = includeChainId
         ? {
-          chainId: chainId,
-          verifyingContract: safeAddress,
-        }
+            chainId: chainId,
+            verifyingContract: safeAddress,
+          }
         : {
-          verifyingContract: safeAddress,
-        };
+            verifyingContract: safeAddress,
+          };
 
       // SafeMessage EIP-712 types
       const types = {
@@ -177,7 +191,19 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
       switch (method) {
         case "personal_sign": {
           // personal_sign params: [message, address]
-          messageToSign = signParams[0];
+          const hexMessage = signParams[0];
+
+          // Decode the hex message to a string for Safe SDK
+          if (hexMessage.startsWith("0x")) {
+            try {
+              messageToSign = ethers.toUtf8String(hexMessage);
+            } catch {
+              // If decoding fails, use the hex string as-is
+              messageToSign = hexMessage;
+            }
+          } else {
+            messageToSign = hexMessage;
+          }
           break;
         }
 
@@ -205,28 +231,27 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
 
       // Check if there's an existing message with signatures in storage
       let messageToSignWith;
-      if (signedMessage) {
-        // Use the existing message that already has signatures
+
+      // Always check storage first to get the latest signatures
+      const allMessages = getAllMessages(safeAddress, chainId?.toString());
+      let existingMessage = null;
+      for (const msg of allMessages) {
+        const hash = await kit.getSafeMessageHash(msg.data as any);
+        if (hash === msgHash) {
+          existingMessage = msg;
+          break;
+        }
+      }
+
+      if (existingMessage && existingMessage.signatures.size > 0) {
+        // Use existing message with signatures from storage
+        messageToSignWith = existingMessage;
+      } else if (signedMessage) {
+        // Fall back to state if no storage found
         messageToSignWith = signedMessage;
       } else {
-        // Check storage for existing message
-        const allMessages = getAllMessages(safeAddress, chainId?.toString());
-        let existingMessage = null;
-        for (const msg of allMessages) {
-          const hash = await kit.getSafeMessageHash(msg.data as any);
-          if (hash === msgHash) {
-            existingMessage = msg;
-            break;
-          }
-        }
-
-        if (existingMessage && existingMessage.signatures.size > 0) {
-          // Use existing message with signatures
-          messageToSignWith = existingMessage;
-        } else {
-          // Create a new Safe message (wraps the original message)
-          messageToSignWith = await kit.createMessage(messageToSign as string);
-        }
+        // Create a new Safe message (wraps the original message)
+        messageToSignWith = await kit.createMessage(messageToSign as string);
       }
 
       // Sign the Safe message with the current owner's EOA
@@ -261,15 +286,26 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
         const encodedSignature = newSignedMessage.encodedSignatures();
 
         // Log the signature for debugging
+        const signaturesArray = Array.from(newSignedMessage.signatures.entries()).map(([addr, sig]) => ({
+          address: addr,
+          signature: sig.data,
+          signer: sig.signer,
+        }));
+
         console.log("Sending signature to WalletConnect:", {
           encodedSignature,
           signatureCount: newSignedMessage.signatures.size,
-          signatures: Array.from(newSignedMessage.signatures.entries()).map(([addr, sig]) => ({
-            address: addr,
-            signature: sig.data,
-          })),
+          signatures: signaturesArray,
           safeAddress,
           method,
+          messageData: newSignedMessage.data,
+        });
+
+        console.log("SAFE DEBUG: About to send to WalletConnect - approveRequest", {
+          topic: currentRequest.topic,
+          id: currentRequest.id,
+          encodedSignature,
+          length: encodedSignature.length,
         });
 
         await approveRequest(currentRequest.topic, {
@@ -277,6 +313,8 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
           jsonrpc: "2.0",
           result: encodedSignature,
         });
+
+        console.log("SAFE DEBUG: Successfully sent to WalletConnect");
 
         // Clear from sessionStorage
         if (typeof window !== "undefined") {
@@ -584,7 +622,7 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
                     <div className="text-xs">
                       <span className="font-semibold">Signer {idx + 1}:</span> {sig.signer}
                     </div>
-                    <div className="text-xs text-gray-500 truncate">Signature: {sig.data}</div>
+                    <div className="truncate text-xs text-gray-500">Signature: {sig.data}</div>
                   </div>
                 ))}
               </div>
@@ -597,10 +635,7 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
                     </span>
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      className="btn btn-outline btn-sm flex-1"
-                      onClick={() => setShowAddSigModal(true)}
-                    >
+                    <button className="btn btn-outline btn-sm flex-1" onClick={() => setShowAddSigModal(true)}>
                       ➕ Add Signature Manually
                     </button>
                     <button
@@ -670,9 +705,7 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
               onClick={handleSign}
               disabled={
                 isProcessing ||
-                (signedMessage &&
-                  connectedAddress &&
-                  signedMessage.signatures?.has(connectedAddress.toLowerCase()))
+                (signedMessage && connectedAddress && signedMessage.signatures?.has(connectedAddress.toLowerCase()))
               }
               data-testid="wc-sign-approve-btn"
             >
@@ -691,7 +724,9 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
 
           {signedMessage && connectedAddress && signedMessage.signatures?.has(connectedAddress.toLowerCase()) && (
             <div className="alert alert-success mt-4">
-              <span>Your connected wallet has already signed this message. Switch wallets to sign with another signer.</span>
+              <span>
+                Your connected wallet has already signed this message. Switch wallets to sign with another signer.
+              </span>
             </div>
           )}
 
