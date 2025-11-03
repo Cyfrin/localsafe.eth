@@ -260,19 +260,17 @@ To run your own local Safe contracts for development, follow these steps:
 ## TODO
 
 - [ ] Refactor E2E testing infrastructure from Synpress to support latest features.
-- [ ] Fix dropdown toggle behavior when clicking the button repeatedly.
 - [ ] Improve devcontainer setup for E2E tests; currently, UI mode has limitations.
 - [ ] Ensure smooth DX when switching between local and devcontainer environments and wild processes cleaning (next-server, anvil).
 - [ ] Adapt for different SafeWallet contract versions (currently optimized for 1.4.1-3).
 - [ ] Automate `version` value in `DEFAULT_SAFE_WALLET_DATA` constant (`app/utils/constants.ts` hardcoded to `3.0.0` now).
-- [ ] Ensure responsiveness of UI on every screen size.
-- [ ] Optimize reactivity from first batch of code.
-- [ ] Add more detailed error handling and user feedback (tooltips, notifications).
-- [ ] Add more comments and documentation in code.
-- [ ] Test with other wallet providers (Coinbase Wallet, Phantom, etc.).
-- [ ] Improve E2E test reliability and coverage.
 - [ ] Add ENS name resolution for addresses in the UI.
 - [ ] Implement transaction history and filtering.
+
+
+- [ ] Extract out the EIP-712 data to it's own component for reusability.
+- [ ] Run linter
+
 
 ## References
 

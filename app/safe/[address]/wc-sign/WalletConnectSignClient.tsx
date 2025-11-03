@@ -3,20 +3,22 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWalletConnect } from "@/app/provider/WalletConnectProvider";
+import { useSafeMessageContext } from "@/app/provider/SafeMessageProvider";
+import { useToast } from "@/app/hooks/useToast";
 import useSafe from "@/app/hooks/useSafe";
 import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
-import { useAccount, useSignMessage, useSignTypedData, useChainId } from "wagmi";
+import { useAccount, useChainId } from "wagmi";
 import { ethers } from "ethers";
 
 export default function WalletConnectSignClient({ safeAddress }: { safeAddress: `0x${string}` }) {
   const navigate = useNavigate();
+  const toast = useToast();
   const { pendingRequest, approveRequest, rejectRequest, clearPendingRequest } = useWalletConnect();
-  const { signSafeTransaction, kit, safeInfo } = useSafe(safeAddress);
+  const { saveMessage, getAllMessages, removeMessage } = useSafeMessageContext();
+  const { kit, safeInfo } = useSafe(safeAddress);
   const chainId = useChainId();
-  const { connector } = useAccount();
-  const { signMessageAsync } = useSignMessage();
-  const { signTypedDataAsync } = useSignTypedData();
+  const { address: connectedAddress } = useAccount();
 
   const [signParams, setSignParams] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -28,6 +30,11 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
     domainHash: string;
     messageHash: string;
   } | null>(null);
+  const [signedMessage, setSignedMessage] = useState<any>(null);
+  const [messageHash, setMessageHash] = useState<string>("");
+  const [showAddSigModal, setShowAddSigModal] = useState(false);
+  const [signerAddress, setSignerAddress] = useState("");
+  const [signatureData, setSignatureData] = useState("");
 
   // Flash the tab title to get user's attention
   useEffect(() => {
@@ -192,39 +199,100 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
           throw new Error(`Unsupported signing method: ${method}`);
       }
 
-      // Create a Safe message (wraps the original message)
-      const safeMessage = await kit.createMessage(messageToSign as string);
+      // Get the message hash first
+      const msgHash = await kit.getSafeMessageHash(messageToSign as string);
+      setMessageHash(msgHash);
+
+      // Check if there's an existing message with signatures in storage
+      let messageToSignWith;
+      if (signedMessage) {
+        // Use the existing message that already has signatures
+        messageToSignWith = signedMessage;
+      } else {
+        // Check storage for existing message
+        const allMessages = getAllMessages(safeAddress, chainId?.toString());
+        let existingMessage = null;
+        for (const msg of allMessages) {
+          const hash = await kit.getSafeMessageHash(msg.data as any);
+          if (hash === msgHash) {
+            existingMessage = msg;
+            break;
+          }
+        }
+
+        if (existingMessage && existingMessage.signatures.size > 0) {
+          // Use existing message with signatures
+          messageToSignWith = existingMessage;
+        } else {
+          // Create a new Safe message (wraps the original message)
+          messageToSignWith = await kit.createMessage(messageToSign as string);
+        }
+      }
 
       // Sign the Safe message with the current owner's EOA
-      const signedMessage = await kit.signMessage(safeMessage);
+      const newSignedMessage = await kit.signMessage(messageToSignWith);
 
       // Get the signature for this owner
       const signerAddress = await kit.getSafeProvider().getSignerAddress();
       if (!signerAddress) {
         throw new Error("No signer address available");
       }
-      const ownerSignature = signedMessage.getSignature(signerAddress);
+      const ownerSignature = newSignedMessage.getSignature(signerAddress);
 
       if (!ownerSignature) {
         throw new Error("Failed to get signature from signed message");
       }
 
-      const signature = ownerSignature.data;
+      // Save the signed message to storage for multi-sig collection
+      saveMessage(safeAddress, newSignedMessage, msgHash, chainId?.toString());
 
-      // Respond to WalletConnect with the signature
-      await approveRequest(currentRequest.topic, {
-        id: currentRequest.id,
-        jsonrpc: "2.0",
-        result: signature,
-      });
+      // Store the signed message in state
+      setSignedMessage(newSignedMessage);
 
-      // Clear from sessionStorage
-      if (typeof window !== "undefined") {
-        sessionStorage.removeItem("wc-pending-request");
+      // Check if threshold is met (number of signatures >= threshold)
+      const signatureCount = newSignedMessage.signatures.size;
+      const threshold = safeInfo?.threshold || 1;
+      const isThresholdMet = signatureCount >= threshold;
+
+      if (isThresholdMet) {
+        // Threshold met - respond to WalletConnect immediately
+        // Get the combined/encoded signature from all signers
+        // Safe's encodedSignatures() automatically sorts by signer address
+        const encodedSignature = newSignedMessage.encodedSignatures();
+
+        // Log the signature for debugging
+        console.log("Sending signature to WalletConnect:", {
+          encodedSignature,
+          signatureCount: newSignedMessage.signatures.size,
+          signatures: Array.from(newSignedMessage.signatures.entries()).map(([addr, sig]) => ({
+            address: addr,
+            signature: sig.data,
+          })),
+          safeAddress,
+          method,
+        });
+
+        await approveRequest(currentRequest.topic, {
+          id: currentRequest.id,
+          jsonrpc: "2.0",
+          result: encodedSignature,
+        });
+
+        // Clear from sessionStorage
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("wc-pending-request");
+        }
+
+        toast.success("Message signed and sent to dApp!");
+        navigate(`/safe/${safeAddress}`);
+      } else {
+        // More signatures needed - stay on this page to collect more
+        toast.success(
+          `Signature added! ${threshold - signatureCount} more signature${threshold - signatureCount > 1 ? "s" : ""} needed.`,
+        );
+        // Don't navigate away - keep the WalletConnect request active
+        setIsProcessing(false);
       }
-
-      alert("Message signed successfully!");
-      navigate(`/safe/${safeAddress}`);
     } catch (error) {
       console.error("Failed to sign message:", error);
 
@@ -265,6 +333,65 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
         alert(`Failed to sign message: ${errorMessage}`);
         setIsProcessing(false);
       }
+    }
+  };
+
+  const handleAddSignature = async () => {
+    if (!signedMessage || !kit || !signerAddress || !signatureData) {
+      toast.error("Please provide both signer address and signature data");
+      return;
+    }
+
+    try {
+      // Validate address format
+      if (!signerAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
+        toast.error("Invalid signer address format");
+        return;
+      }
+
+      // Validate signature format
+      if (!signatureData.match(/^0x[a-fA-F0-9]+$/)) {
+        toast.error("Invalid signature format");
+        return;
+      }
+
+      // Import the EthSafeSignature class
+      const { EthSafeSignature } = await import("@safe-global/protocol-kit");
+
+      // Add the signature to the message
+      const ethSignature = new EthSafeSignature(signerAddress, signatureData, false);
+      signedMessage.addSignature(ethSignature);
+
+      // Save updated message
+      saveMessage(safeAddress, signedMessage, messageHash, chainId?.toString());
+      setSignedMessage({ ...signedMessage }); // Force re-render
+
+      // Clear form
+      setSignerAddress("");
+      setSignatureData("");
+      setShowAddSigModal(false);
+
+      toast.success("Signature added!");
+
+      // Check if threshold is met
+      const threshold = safeInfo?.threshold || 1;
+      if (signedMessage.signatures.size >= threshold && currentRequest) {
+        const encodedSignature = signedMessage.encodedSignatures();
+        await approveRequest(currentRequest.topic, {
+          id: currentRequest.id,
+          jsonrpc: "2.0",
+          result: encodedSignature,
+        });
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("wc-pending-request");
+        }
+        removeMessage(safeAddress, messageHash, chainId?.toString());
+        toast.success("Threshold met! Message signed and sent to dApp!");
+        navigate(`/safe/${safeAddress}`);
+      }
+    } catch (error) {
+      console.error("Failed to add signature:", error);
+      toast.error("Failed to add signature");
     }
   };
 
@@ -435,6 +562,99 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
             </div>
           )}
 
+          {/* Signature Collection Progress */}
+          {signedMessage && safeInfo && (
+            <div className="bg-base-200 rounded-box p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <h5 className="font-semibold">
+                  Signatures ({signedMessage.signatures.size}/{safeInfo.threshold})
+                </h5>
+                {signedMessage.signatures.size < safeInfo.threshold && (
+                  <span className="badge badge-warning">
+                    {safeInfo.threshold - signedMessage.signatures.size} more needed
+                  </span>
+                )}
+                {signedMessage.signatures.size >= safeInfo.threshold && (
+                  <span className="badge badge-success">Threshold met!</span>
+                )}
+              </div>
+              <div className="space-y-2">
+                {Array.from(signedMessage.signatures.values()).map((sig: any, idx: number) => (
+                  <div key={idx} className="bg-base-300 rounded p-2">
+                    <div className="text-xs">
+                      <span className="font-semibold">Signer {idx + 1}:</span> {sig.signer}
+                    </div>
+                    <div className="text-xs text-gray-500 truncate">Signature: {sig.data}</div>
+                  </div>
+                ))}
+              </div>
+              {signedMessage.signatures.size < safeInfo.threshold && (
+                <div className="mt-4 space-y-2">
+                  <div className="alert alert-info">
+                    <span className="text-sm">
+                      Keep this page open. Share the message link with other signers, or have them import their
+                      signature. Click "Check for Updates" after they've signed.
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      className="btn btn-outline btn-sm flex-1"
+                      onClick={() => setShowAddSigModal(true)}
+                    >
+                      ➕ Add Signature Manually
+                    </button>
+                    <button
+                      className="btn btn-outline btn-sm flex-1"
+                      onClick={async () => {
+                        if (!kit) return;
+                        try {
+                          const allMessages = getAllMessages(safeAddress, chainId?.toString());
+                          for (const msg of allMessages) {
+                            const hash = await kit.getSafeMessageHash(msg.data as any);
+                            if (hash === messageHash) {
+                              if (msg.signatures.size > signedMessage.signatures.size) {
+                                setSignedMessage(msg);
+                                toast.success(
+                                  `Found ${msg.signatures.size - signedMessage.signatures.size} new signature(s)!`,
+                                );
+
+                                // Check if threshold is now met
+                                const threshold = safeInfo?.threshold || 1;
+                                if (msg.signatures.size >= threshold && currentRequest) {
+                                  const encodedSignature = msg.encodedSignatures();
+                                  await approveRequest(currentRequest.topic, {
+                                    id: currentRequest.id,
+                                    jsonrpc: "2.0",
+                                    result: encodedSignature,
+                                  });
+                                  if (typeof window !== "undefined") {
+                                    sessionStorage.removeItem("wc-pending-request");
+                                  }
+                                  removeMessage(safeAddress, messageHash, chainId?.toString());
+                                  toast.success("Threshold met! Message signed and sent to dApp!");
+                                  navigate(`/safe/${safeAddress}`);
+                                  return;
+                                }
+                              } else {
+                                toast.info("No new signatures yet");
+                              }
+                              break;
+                            }
+                          }
+                        } catch (error) {
+                          console.error("Failed to check for updates:", error);
+                          toast.error("Failed to check for signature updates");
+                        }
+                      }}
+                    >
+                      🔄 Check for Signature Updates
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="mt-4 flex gap-2">
             <button
@@ -448,7 +668,12 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
             <button
               className="btn btn-success flex-1"
               onClick={handleSign}
-              disabled={isProcessing}
+              disabled={
+                isProcessing ||
+                (signedMessage &&
+                  connectedAddress &&
+                  signedMessage.signatures?.has(connectedAddress.toLowerCase()))
+              }
               data-testid="wc-sign-approve-btn"
             >
               {isProcessing ? (
@@ -456,13 +681,21 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
                   <span className="loading loading-spinner loading-sm"></span>
                   <span>Signing...</span>
                 </div>
+              ) : signedMessage && connectedAddress && signedMessage.signatures?.has(connectedAddress.toLowerCase()) ? (
+                "Already Signed"
               ) : (
                 "Sign Message"
               )}
             </button>
           </div>
 
-          <div className="alert alert-warning">
+          {signedMessage && connectedAddress && signedMessage.signatures?.has(connectedAddress.toLowerCase()) && (
+            <div className="alert alert-success mt-4">
+              <span>Your connected wallet has already signed this message. Switch wallets to sign with another signer.</span>
+            </div>
+          )}
+
+          <div className="alert alert-warning mt-4">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-6 w-6 shrink-0 stroke-current"
@@ -480,6 +713,66 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
           </div>
         </div>
       </AppCard>
+
+      {/* Add Signature Modal */}
+      {showAddSigModal && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="mb-4 text-lg font-bold">Add Signature Manually</h3>
+            <p className="mb-4 text-sm text-gray-500">
+              Add a signature from another signer who signed this message offline or using a different tool.
+            </p>
+
+            <div className="form-control mb-4">
+              <label className="label">
+                <span className="label-text">Signer Address</span>
+              </label>
+              <input
+                type="text"
+                placeholder="0x..."
+                className="input input-bordered w-full font-mono"
+                value={signerAddress}
+                onChange={(e) => setSignerAddress(e.target.value)}
+              />
+              <label className="label">
+                <span className="label-text-alt">The address that signed the message</span>
+              </label>
+            </div>
+
+            <div className="form-control mb-4">
+              <label className="label">
+                <span className="label-text">Signature Data</span>
+              </label>
+              <textarea
+                placeholder="0x..."
+                className="textarea textarea-bordered w-full font-mono text-xs"
+                rows={4}
+                value={signatureData}
+                onChange={(e) => setSignatureData(e.target.value)}
+              />
+              <label className="label">
+                <span className="label-text-alt">The hex-encoded signature data</span>
+              </label>
+            </div>
+
+            <div className="modal-action">
+              <button
+                className="btn"
+                onClick={() => {
+                  setShowAddSigModal(false);
+                  setSignerAddress("");
+                  setSignatureData("");
+                }}
+              >
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleAddSignature}>
+                Add Signature
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppSection>
   );
 }

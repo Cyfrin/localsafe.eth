@@ -7,11 +7,12 @@ import useSafe from "@/app/hooks/useSafe";
 import { DEFAULT_DEPLOY_STEPS, STEPS_DEPLOY_LABEL } from "@/app/utils/constants";
 import React, { useEffect, useState, useRef } from "react";
 import { useSafeTxContext } from "@/app/provider/SafeTxProvider";
+import { useSafeMessageContext } from "@/app/provider/SafeMessageProvider";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAccount } from "wagmi";
 import { formatEther } from "viem";
 import { ImportTxPreview, SafeDeployStep } from "@/app/utils/types";
-import { EthSafeTransaction, EthSafeSignature } from "@safe-global/protocol-kit";
+import { EthSafeTransaction, EthSafeSignature, EthSafeMessage } from "@safe-global/protocol-kit";
 import { Link } from "react-router-dom";
 import DeploymentModal from "@/app/components/DeploymentModal";
 import ImportSafeTxModal from "@/app/components/ImportSafeTxModal";
@@ -46,6 +47,7 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
   } = useSafe(safeAddress);
   // Hooks
   const { exportTx, importTx, getAllTransactions, saveTransaction, removeTransaction } = useSafeTxContext();
+  const { getAllMessages, saveMessage, removeMessage } = useSafeMessageContext();
   const { setSafeMultiSendConfig, getSafeMultiSendConfig } = useSafeWalletContext();
   const toast = useToast();
   const { confirm } = useConfirm();
@@ -58,6 +60,7 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
   const [deployError, setDeployError] = useState<string | null>(null);
   const [deployTxHash, setDeployTxHash] = useState<string | null>(null);
   const [allTxs, setAllTxs] = useState<Array<{ tx: EthSafeTransaction; hash: string }>>([]);
+  const [allMessages, setAllMessages] = useState<Array<{ message: EthSafeMessage; hash: string }>>([]);
   // Import/export modal state
   const [showImportModal, setShowImportModal] = useState(false);
   const [importPreview, setImportPreview] = useState<ImportTxPreview | { error: string } | null>(null);
@@ -70,6 +73,8 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
     async function handleSharedLinks() {
       const importTxParam = searchParams.get("importTx");
       const importSigParam = searchParams.get("importSig");
+      const importMsgParam = searchParams.get("importMsg");
+      const importMsgSigParam = searchParams.get("importMsgSig");
       const urlChainId = searchParams.get("chainId");
 
       if (importTxParam) {
@@ -139,11 +144,101 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
           console.error("Failed to import signature from URL:", e);
           toast.error("Failed to import signature from shared link");
         }
+      } else if (importMsgParam) {
+        try {
+          const decoded = atob(decodeURIComponent(importMsgParam));
+          const parsed = JSON.parse(decoded);
+
+          if (parsed.message && parsed.message.data) {
+            // Import the full message with signatures
+            const chainId = urlChainId || (chain?.id ? String(chain.id) : undefined);
+            const msgObj = new EthSafeMessage(parsed.message.data as any);
+            if (parsed.message.signatures && Array.isArray(parsed.message.signatures)) {
+              parsed.message.signatures.forEach(
+                (sig: { signer: string; data: string; isContractSignature: boolean }) => {
+                  const ethSignature = new EthSafeSignature(sig.signer, sig.data, sig.isContractSignature);
+                  msgObj.addSignature(ethSignature);
+                },
+              );
+            }
+            // Calculate message hash
+            if (!kit) {
+              toast.error("Safe kit not initialized");
+              return;
+            }
+            const messageHash = await kit.getSafeMessageHash(msgObj.data as any);
+            saveMessage(safeAddress, msgObj, messageHash, chainId);
+            // Clear URL parameters
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, "", newUrl);
+            // Show success message
+            toast.success(
+              `Message imported successfully!${urlChainId && chain?.id && String(chain.id) !== urlChainId ? ` (Chain ID: ${urlChainId})` : ""}`,
+            );
+          }
+        } catch (e) {
+          console.error("Failed to import message from URL:", e);
+          toast.error("Failed to import message from shared link");
+        }
+      } else if (importMsgSigParam) {
+        try {
+          const decoded = atob(decodeURIComponent(importMsgSigParam));
+          const parsed = JSON.parse(decoded);
+
+          if (parsed.signature && parsed.messageHash) {
+            // Find the message by hash
+            const chainId = urlChainId || (chain?.id ? String(chain.id) : undefined);
+            const allMessages = getAllMessages(safeAddress, chainId);
+
+            // Search for message matching the hash
+            let matchingMsg: EthSafeMessage | null = null;
+            for (const msg of allMessages) {
+              if (!kit) break;
+              const hash = await kit.getSafeMessageHash(msg.data as any);
+              if (hash === parsed.messageHash) {
+                matchingMsg = msg;
+                break;
+              }
+            }
+
+            if (matchingMsg) {
+              // Add the signature to the message
+              const ethSignature = new EthSafeSignature(
+                parsed.signature.signer,
+                parsed.signature.data,
+                parsed.signature.isContractSignature,
+              );
+              matchingMsg.addSignature(ethSignature);
+              saveMessage(safeAddress, matchingMsg, parsed.messageHash, chainId);
+
+              // Clear URL parameter
+              const newUrl = window.location.pathname;
+              window.history.replaceState({}, "", newUrl);
+              // Show success message
+              toast.success("Signature added successfully!");
+            } else {
+              toast.error("Message not found. Please import the full message first.");
+            }
+          }
+        } catch (e) {
+          console.error("Failed to import signature from URL:", e);
+          toast.error("Failed to import signature from shared link");
+        }
       }
     }
 
     handleSharedLinks();
-  }, [kit, searchParams, safeAddress, importTx, getAllTransactions, saveTransaction, chain]);
+  }, [
+    kit,
+    searchParams,
+    safeAddress,
+    importTx,
+    getAllTransactions,
+    saveTransaction,
+    getAllMessages,
+    saveMessage,
+    chain,
+  ]);
 
   // Fetch all transactions if any
   useEffect(() => {
@@ -183,6 +278,45 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
       cancelled = true;
     };
   }, [getAllTransactions, kit, isLoading, safeAddress, chain]);
+
+  // Fetch all messages if any
+  useEffect(() => {
+    if (!kit || isLoading) return;
+    let cancelled = false;
+    const safeKit = kit;
+    async function fetchMessages() {
+      try {
+        const chainId = chain?.id ? String(chain.id) : undefined;
+        const messages = getAllMessages(safeAddress, chainId);
+
+        if (messages.length > 0) {
+          // Get hashes for all messages
+          const messagesWithHashes = await Promise.all(
+            messages.map(async (msg) => ({
+              message: msg,
+              hash: await safeKit.getSafeMessageHash(msg.data as any),
+            })),
+          );
+
+          if (!cancelled) {
+            setAllMessages(messagesWithHashes);
+          }
+        } else {
+          if (!cancelled) {
+            setAllMessages([]);
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setAllMessages([]);
+        }
+      }
+    }
+    fetchMessages();
+    return () => {
+      cancelled = true;
+    };
+  }, [getAllMessages, kit, isLoading, safeAddress, chain]);
 
   // Handler for deploying undeployed Safe
   async function handleDeployUndeployedSafe() {
@@ -279,6 +413,23 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
       const updatedTxs = allTxs.filter(({ hash }) => hash !== txHash);
       setAllTxs(updatedTxs);
       toast.success("Transaction deleted successfully");
+    }
+  }
+
+  // Handle message deletion
+  async function handleDeleteMessage(messageHash: string) {
+    const confirmed = await confirm(
+      "Are you sure you want to delete this message? This action cannot be undone.",
+      "Delete Message",
+    );
+
+    if (confirmed) {
+      const chainId = chain?.id ? String(chain.id) : undefined;
+      removeMessage(safeAddress, messageHash, chainId);
+      // Filter out the deleted message from the current list
+      const updatedMessages = allMessages.filter(({ hash }) => hash !== messageHash);
+      setAllMessages(updatedMessages);
+      toast.success("Message deleted successfully");
     }
   }
 
@@ -510,6 +661,53 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
           </AppCard>
         )}
       </div>
+
+      {/* Pending Messages Section */}
+      {allMessages.length > 0 && (
+        <div className="mt-6">
+          <AppCard title="Pending Messages" testid="safe-dashboard-pending-messages-card">
+            <div className="flex flex-col gap-2">
+              {allMessages.map(({ message, hash }) => (
+                <div key={hash} className="flex items-center gap-2">
+                  <Link
+                    className="btn btn-warning btn-outline flex w-full items-center justify-between gap-2 rounded text-sm"
+                    data-testid={`safe-dashboard-pending-message-link-${hash}`}
+                    to={`/safe/${safeAddress}/message/${hash}`}
+                    title="View message details"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">Message:</span>
+                      <span className="max-w-[200px] truncate font-mono text-xs">
+                        {typeof message.data === "string" ? message.data : "EIP-712 Typed Data"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">Hash:</span>
+                      <span className="max-w-[120px] truncate font-mono text-xs" title={hash}>
+                        {hash}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">Sigs:</span>
+                      <span>
+                        {message.signatures?.size ?? 0}/{safeInfo?.threshold ?? 1}
+                      </span>
+                    </div>
+                  </Link>
+                  <button
+                    className="btn btn-ghost btn-sm btn-square"
+                    onClick={() => handleDeleteMessage(hash)}
+                    title="Delete message"
+                    data-testid={`safe-dashboard-delete-message-btn-${hash}`}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          </AppCard>
+        </div>
+      )}
 
       {/* Token Balances Section */}
       {safeInfo && safeInfo.deployed && !unavailable && chain?.id && (

@@ -121,7 +121,7 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
         }
       });
 
-      await approveSession(namespaces);
+      await approveSession(namespaces, safeAddress, chain.id);
     } catch (e) {
       console.error("Failed to approve session:", e);
       alert(`Failed to approve session: ${e instanceof Error ? e.message : String(e)}`);

@@ -1,5 +1,6 @@
 import { SafeWalletProvider } from "./SafeWalletProvider";
 import { SafeTxProvider } from "./SafeTxProvider";
+import { SafeMessageProvider } from "./SafeMessageProvider";
 import { WagmiConfigProvider } from "./WagmiConfigProvider";
 import { WalletConnectProvider } from "./WalletConnectProvider";
 import { ThemeProvider } from "./ThemeProvider";
@@ -12,7 +13,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <WagmiConfigProvider>
           <SafeWalletProvider>
             <SafeTxProvider>
-              <WalletConnectProvider>{children}</WalletConnectProvider>
+              <SafeMessageProvider>
+                <WalletConnectProvider>{children}</WalletConnectProvider>
+              </SafeMessageProvider>
             </SafeTxProvider>
           </SafeWalletProvider>
         </WagmiConfigProvider>
