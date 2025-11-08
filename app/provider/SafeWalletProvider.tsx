@@ -74,8 +74,7 @@ export const SafeWalletProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [safeWalletData, loaded]);
   // Build contractNetworks whenever chains change
   useEffect(() => {
-    const chainIds = chains.map((c) => c.id);
-    buildContractNetworks(chainIds)
+    buildContractNetworks([...chains])
       .then(setContractNetworks)
       .catch(() => setContractNetworks(undefined));
   }, [chains]);

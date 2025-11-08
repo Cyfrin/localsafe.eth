@@ -49,60 +49,73 @@ export type ContractNetworks = {
   [chainId: string]: ContractAddresses;
 };
 
-export async function buildContractNetworks(chainIds: number[], safeVersion = "1.4.1"): Promise<ContractNetworks> {
+export async function buildContractNetworks(chains: Array<{ id: number; contracts?: Record<string, any> }>, safeVersion = "1.4.1"): Promise<ContractNetworks> {
   const contractNetworks: ContractNetworks = {};
-  for (const chainId of chainIds) {
-    if (chainId === 31337) {
-      contractNetworks[chainId] = localContractNetworks[31337];
-      continue;
-    }
-    try {
-      const singleton = getSafeSingletonDeployment({
-        network: chainId.toString(),
-        version: safeVersion,
-      });
-      const proxyFactory = getProxyFactoryDeployment({
-        network: chainId.toString(),
-        version: safeVersion,
-      });
-      const fallbackHandler = getFallbackHandlerDeployment({
-        network: chainId.toString(),
-        version: safeVersion,
-      });
-      const multiSend = getMultiSendDeployment({ network: chainId.toString() });
-      const multiSendCallOnly = getMultiSendCallOnlyDeployment({
-        network: chainId.toString(),
-      });
-      const signMessageLib = getSignMessageLibDeployment({
-        network: chainId.toString(),
-      });
-      const createCall = getCreateCallDeployment({
-        network: chainId.toString(),
-      });
-      const simulateTxAccessor = getSimulateTxAccessorDeployment({
-        network: chainId.toString(),
-      });
-      const tokenCallbackHandler = getTokenCallbackHandlerDeployment({
-        network: chainId.toString(),
-      });
+  for (const chain of chains) {
+    const chainId = chain.id;
+    let baseConfig: ContractAddresses = {};
 
-      contractNetworks[chainId] = {
-        safeSingletonAddress: singleton?.defaultAddress,
-        safeProxyFactoryAddress: proxyFactory?.defaultAddress,
-        fallbackHandlerAddress: fallbackHandler?.defaultAddress,
-        multiSendAddress: multiSend?.defaultAddress,
-        multiSendCallOnlyAddress: multiSendCallOnly?.defaultAddress,
-        signMessageLibAddress: signMessageLib?.defaultAddress,
-        createCallAddress: createCall?.defaultAddress,
-        simulateTxAccessorAddress: simulateTxAccessor?.defaultAddress,
-        tokenCallbackHandlerAddress: tokenCallbackHandler?.defaultAddress,
-      };
-    } catch {
-      // If Safe 1.4.1 is not available, display error and skip this chain
-      // TODO: In future, support dynamic Safe version fallback
-      console.error(`Safe contracts for version 1.4.1 not found on chain ${chainId}. Skipping.`);
-      continue;
+    if (chainId === 31337) {
+      baseConfig = { ...localContractNetworks[31337] };
+    } else {
+      try {
+        const singleton = getSafeSingletonDeployment({
+          network: chainId.toString(),
+          version: safeVersion,
+        });
+        const proxyFactory = getProxyFactoryDeployment({
+          network: chainId.toString(),
+          version: safeVersion,
+        });
+        const fallbackHandler = getFallbackHandlerDeployment({
+          network: chainId.toString(),
+          version: safeVersion,
+        });
+        const multiSend = getMultiSendDeployment({ network: chainId.toString() });
+        const multiSendCallOnly = getMultiSendCallOnlyDeployment({
+          network: chainId.toString(),
+        });
+        const signMessageLib = getSignMessageLibDeployment({
+          network: chainId.toString(),
+        });
+        const createCall = getCreateCallDeployment({
+          network: chainId.toString(),
+        });
+        const simulateTxAccessor = getSimulateTxAccessorDeployment({
+          network: chainId.toString(),
+        });
+        const tokenCallbackHandler = getTokenCallbackHandlerDeployment({
+          network: chainId.toString(),
+        });
+
+        baseConfig = {
+          safeSingletonAddress: singleton?.defaultAddress,
+          safeProxyFactoryAddress: proxyFactory?.defaultAddress,
+          fallbackHandlerAddress: fallbackHandler?.defaultAddress,
+          multiSendAddress: multiSend?.defaultAddress,
+          multiSendCallOnlyAddress: multiSendCallOnly?.defaultAddress,
+          signMessageLibAddress: signMessageLib?.defaultAddress,
+          createCallAddress: createCall?.defaultAddress,
+          simulateTxAccessorAddress: simulateTxAccessor?.defaultAddress,
+          tokenCallbackHandlerAddress: tokenCallbackHandler?.defaultAddress,
+        };
+      } catch {
+        // If Safe 1.4.1 is not available, display error and skip this chain
+        // TODO: In future, support dynamic Safe version fallback
+        console.error(`Safe contracts for version 1.4.1 not found on chain ${chainId}. Skipping.`);
+        continue;
+      }
     }
+
+    // Override with chain-specific contract addresses if provided
+    if (chain.contracts?.multiSend?.address) {
+      baseConfig.multiSendAddress = chain.contracts.multiSend.address;
+    }
+    if (chain.contracts?.multiSendCallOnly?.address) {
+      baseConfig.multiSendCallOnlyAddress = chain.contracts.multiSendCallOnly.address;
+    }
+
+    contractNetworks[chainId] = baseConfig;
   }
   return contractNetworks;
 }
