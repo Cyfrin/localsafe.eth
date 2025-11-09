@@ -148,12 +148,12 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
       const includeChainId = safeVersion >= "1.3.0";
       const domain = includeChainId
         ? {
-            chainId: chainId,
-            verifyingContract: safeAddress,
-          }
+          chainId: chainId,
+          verifyingContract: safeAddress,
+        }
         : {
-            verifyingContract: safeAddress,
-          };
+          verifyingContract: safeAddress,
+        };
 
       // SafeMessage EIP-712 types
       const types = {
@@ -539,6 +539,27 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
             </div>
           )}
 
+          {/* Warning: Keep Page Open */}
+          <div className="alert alert-warning">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6 shrink-0 stroke-current"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+            <span>
+              <strong>Keep this page open!</strong> Navigating away will cancel the WalletConnect request and the dApp
+              will stop waiting for your signature.
+            </span>
+          </div>
+
           {/* Signing Method */}
           <div className="bg-base-200 rounded-box p-4">
             <h5 className="mb-2 font-semibold">Signing Method</h5>
@@ -611,12 +632,6 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
               </div>
               {signedMessage.signatures.size < safeInfo.threshold && (
                 <div className="mt-4 space-y-2">
-                  <div className="alert alert-info">
-                    <span className="text-sm">
-                      Keep this page open. Share the message link with other signers, or have them import their
-                      signature. Click &quot;Check for Updates&quot; after they&apos;ve signed.
-                    </span>
-                  </div>
                   <div className="flex gap-2">
                     <button className="btn btn-outline btn-sm flex-1" onClick={() => setShowAddSigModal(true)}>
                       ➕ Add Signature Manually
