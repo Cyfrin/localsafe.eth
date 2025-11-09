@@ -359,6 +359,11 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
     navigate(`/safe/${safeAddress}/new-tx`);
   }
 
+  // Handler to go to sign message page
+  function handleGoToSignMessage() {
+    navigate(`/safe/${safeAddress}/sign-message`);
+  }
+
   // Utility to handle Safe transaction import and state update
   async function handleImportTx(importPreview: ImportTxPreview | { error: string } | null) {
     if (typeof importPreview === "object" && importPreview !== null && !("error" in importPreview)) {
@@ -568,7 +573,7 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
               </>
             )}
             {safeInfo && safeInfo.deployed && isOwner && !isLoading && !error && !unavailable && (
-              <>
+              <div className="flex gap-2">
                 <button
                   className="btn btn-outline btn-primary"
                   onClick={handleGoToBuilder}
@@ -576,7 +581,14 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
                 >
                   Build New Transaction
                 </button>
-              </>
+                <button
+                  className="btn btn-outline btn-secondary"
+                  onClick={handleGoToSignMessage}
+                  data-testid="safe-dashboard-sign-message-btn"
+                >
+                  Sign Message
+                </button>
+              </div>
             )}
             {safeInfo && safeInfo.deployed && !isOwner && !isLoading && !error && !unavailable && (
               <div className="alert alert-info">Read-only: Only owners can perform actions.</div>
