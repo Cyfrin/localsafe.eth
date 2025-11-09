@@ -71,17 +71,35 @@ export default function NetworkModal({
    * @param state - The state of the network form to add or update.
    */
   function handleNetworkAdd(state: NetworkFormState) {
-    // Build contracts object with MultiSend addresses if provided
+    // Build contracts object with all Safe contract addresses if provided
     const contracts: Record<string, { address: `0x${string}` }> = {};
+
+    if (state.safeProxyFactoryAddress) {
+      contracts.safeProxyFactory = { address: state.safeProxyFactoryAddress as `0x${string}` };
+    }
+    if (state.safeSingletonAddress) {
+      contracts.safeSingleton = { address: state.safeSingletonAddress as `0x${string}` };
+    }
+    if (state.fallbackHandlerAddress) {
+      contracts.fallbackHandler = { address: state.fallbackHandlerAddress as `0x${string}` };
+    }
     if (state.multiSendAddress) {
-      contracts.multiSend = {
-        address: state.multiSendAddress as `0x${string}`,
-      };
+      contracts.multiSend = { address: state.multiSendAddress as `0x${string}` };
     }
     if (state.multiSendCallOnlyAddress) {
-      contracts.multiSendCallOnly = {
-        address: state.multiSendCallOnlyAddress as `0x${string}`,
-      };
+      contracts.multiSendCallOnly = { address: state.multiSendCallOnlyAddress as `0x${string}` };
+    }
+    if (state.signMessageLibAddress) {
+      contracts.signMessageLib = { address: state.signMessageLibAddress as `0x${string}` };
+    }
+    if (state.createCallAddress) {
+      contracts.createCall = { address: state.createCallAddress as `0x${string}` };
+    }
+    if (state.simulateTxAccessorAddress) {
+      contracts.simulateTxAccessor = { address: state.simulateTxAccessorAddress as `0x${string}` };
+    }
+    if (state.tokenCallbackHandlerAddress) {
+      contracts.tokenCallbackHandler = { address: state.tokenCallbackHandlerAddress as `0x${string}` };
     }
 
     addOrUpdateChain({
@@ -143,18 +161,22 @@ export default function NetworkModal({
                         className="btn btn-square btn-ghost"
                         title={`Edit ${chain.name}`}
                         onClick={() => {
+                          const chainContracts = chain.contracts as Record<string, { address: string }> | undefined;
                           setEditChain({
                             id: chain.id,
                             name: chain.name,
                             rpcUrl: chain.rpcUrls?.default?.http?.[0] || "",
                             blockExplorerUrl: chain.blockExplorers?.default?.url || "",
                             blockExplorerName: chain.blockExplorers?.default?.name || "",
-                            multiSendAddress:
-                              (chain.contracts as Record<string, { address: string }> | undefined)?.multiSend
-                                ?.address || "",
-                            multiSendCallOnlyAddress:
-                              (chain.contracts as Record<string, { address: string }> | undefined)?.multiSendCallOnly
-                                ?.address || "",
+                            safeProxyFactoryAddress: chainContracts?.safeProxyFactory?.address || "",
+                            safeSingletonAddress: chainContracts?.safeSingleton?.address || "",
+                            fallbackHandlerAddress: chainContracts?.fallbackHandler?.address || "",
+                            multiSendAddress: chainContracts?.multiSend?.address || "",
+                            multiSendCallOnlyAddress: chainContracts?.multiSendCallOnly?.address || "",
+                            signMessageLibAddress: chainContracts?.signMessageLib?.address || "",
+                            createCallAddress: chainContracts?.createCall?.address || "",
+                            simulateTxAccessorAddress: chainContracts?.simulateTxAccessor?.address || "",
+                            tokenCallbackHandlerAddress: chainContracts?.tokenCallbackHandler?.address || "",
                             nativeCurrency: chain.nativeCurrency || {
                               name: "",
                               symbol: "",

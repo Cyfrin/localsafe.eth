@@ -108,11 +108,33 @@ export async function buildContractNetworks(chains: Array<{ id: number; contract
     }
 
     // Override with chain-specific contract addresses if provided
+    // This allows users to configure custom Safe contract deployments via wagmi chain config
     if (chain.contracts?.multiSend?.address) {
       baseConfig.multiSendAddress = chain.contracts.multiSend.address;
     }
     if (chain.contracts?.multiSendCallOnly?.address) {
       baseConfig.multiSendCallOnlyAddress = chain.contracts.multiSendCallOnly.address;
+    }
+    if (chain.contracts?.safeProxyFactory?.address) {
+      baseConfig.safeProxyFactoryAddress = chain.contracts.safeProxyFactory.address;
+    }
+    if (chain.contracts?.safeSingleton?.address) {
+      baseConfig.safeSingletonAddress = chain.contracts.safeSingleton.address;
+    }
+    if (chain.contracts?.fallbackHandler?.address) {
+      baseConfig.fallbackHandlerAddress = chain.contracts.fallbackHandler.address;
+    }
+    if (chain.contracts?.signMessageLib?.address) {
+      baseConfig.signMessageLibAddress = chain.contracts.signMessageLib.address;
+    }
+    if (chain.contracts?.createCall?.address) {
+      baseConfig.createCallAddress = chain.contracts.createCall.address;
+    }
+    if (chain.contracts?.simulateTxAccessor?.address) {
+      baseConfig.simulateTxAccessorAddress = chain.contracts.simulateTxAccessor.address;
+    }
+    if (chain.contracts?.tokenCallbackHandler?.address) {
+      baseConfig.tokenCallbackHandlerAddress = chain.contracts.tokenCallbackHandler.address;
     }
 
     contractNetworks[chainId] = baseConfig;
