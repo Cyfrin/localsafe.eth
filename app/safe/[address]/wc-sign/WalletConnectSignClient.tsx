@@ -299,6 +299,9 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
           sessionStorage.removeItem("wc-pending-request");
         }
 
+        // Remove from message storage since it's been successfully sent
+        removeMessage(safeAddress, messageHash, chainId?.toString());
+
         toast.success("Message signed and sent to dApp!");
         navigate(`/safe/${safeAddress}`);
       } else {

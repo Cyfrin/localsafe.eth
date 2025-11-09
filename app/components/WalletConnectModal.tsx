@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useWalletConnect } from "../provider/WalletConnectProvider";
 import { useAccount } from "wagmi";
 import { useParams } from "react-router-dom";
@@ -42,6 +42,7 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
   const [activeTab, setActiveTab] = useState(0);
   const [pairingCode, setPairingCode] = useState("");
   const [apiKeyInput, setApiKeyInput] = useState("");
+  const pairingInputRef = useRef<HTMLInputElement>(null);
   const params = useParams<{ address: string }>();
   const safeAddress = params.address;
   const { chain } = useAccount();
@@ -63,14 +64,28 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
   useEffect(() => {
     if (open) {
       setPairingCode("");
+      // Auto-focus Connect tab if no sessions exist
+      if (sessions.length === 0 && activeTab !== 0) {
+        setActiveTab(0);
+      }
     }
-  }, [open]);
+  }, [open, sessions.length]);
 
   useEffect(() => {
     if (pendingProposal && activeTab !== 1) {
       setActiveTab(1);
     }
   }, [pendingProposal, activeTab]);
+
+  // Auto-focus pairing input when Connect tab is active
+  useEffect(() => {
+    if (open && activeTab === 0) {
+      // Small delay to ensure the input is rendered
+      setTimeout(() => {
+        pairingInputRef.current?.focus();
+      }, 100);
+    }
+  }, [open, activeTab]);
 
   const handleSubmit = async () => {
     if (pairingCode.trim() !== "") {
@@ -289,6 +304,7 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
                     </label>
                     <div className="join w-full">
                       <input
+                        ref={pairingInputRef}
                         type="text"
                         className="input input-bordered join-item flex-1"
                         value={pairingCode}
