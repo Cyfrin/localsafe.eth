@@ -44,7 +44,7 @@ export function calculateSafeMessageHashes(
   safeAddress: string,
   chainId: number,
   messageContent: string,
-  safeVersion = "1.4.1"
+  safeVersion = "1.4.1",
 ): EIP712HashResult {
   // SafeMessage EIP-712 domain
   const includeChainId = safeVersion >= "1.3.0";

@@ -42,7 +42,6 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
     unavailable,
     kit,
     deployUndeployedSafe,
-    getSafeTransactionCurrent,
     createBatchedOwnerManagementTransaction,
   } = useSafe(safeAddress);
   // Hooks
@@ -233,6 +232,7 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
     searchParams,
     safeAddress,
     importTx,
+    toast,
     getAllTransactions,
     saveTransaction,
     getAllMessages,

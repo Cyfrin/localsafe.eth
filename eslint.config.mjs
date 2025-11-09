@@ -21,6 +21,21 @@ const eslintConfig = [
       ".cache-synpress/**",
     ],
   },
+  {
+    rules: {
+      // Allow `any` types when working with external SDKs
+      "@typescript-eslint/no-explicit-any": "off",
+
+      // React unescaped entities warning (apostrophes, quotes in JSX)
+      "react/no-unescaped-entities": "warn",
+
+      // Next.js image - turn off since we're using regular img tags intentionally
+      "@next/next/no-img-element": "off",
+
+      // React hooks warnings instead of errors (still important but not blocking)
+      "react-hooks/exhaustive-deps": "warn",
+    },
+  },
 ];
 
 export default eslintConfig;

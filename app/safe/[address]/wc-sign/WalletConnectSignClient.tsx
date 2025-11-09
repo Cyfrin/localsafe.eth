@@ -145,12 +145,12 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
       const includeChainId = safeVersion >= "1.3.0";
       const domain = includeChainId
         ? {
-          chainId: chainId,
-          verifyingContract: safeAddress,
-        }
+            chainId: chainId,
+            verifyingContract: safeAddress,
+          }
         : {
-          verifyingContract: safeAddress,
-        };
+            verifyingContract: safeAddress,
+          };
 
       // SafeMessage EIP-712 types
       const types = {
@@ -284,13 +284,6 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
         // Get the combined/encoded signature from all signers
         // Safe's encodedSignatures() automatically sorts by signer address
         const encodedSignature = newSignedMessage.encodedSignatures();
-
-        // Log the signature for debugging
-        const signaturesArray = Array.from(newSignedMessage.signatures.entries()).map(([addr, sig]) => ({
-          address: addr,
-          signature: sig.data,
-          signer: sig.signer,
-        }));
 
         await approveRequest(currentRequest.topic, {
           id: currentRequest.id,
@@ -613,7 +606,7 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
                   <div className="alert alert-info">
                     <span className="text-sm">
                       Keep this page open. Share the message link with other signers, or have them import their
-                      signature. Click "Check for Updates" after they've signed.
+                      signature. Click &quot;Check for Updates&quot; after they&apos;ve signed.
                     </span>
                   </div>
                   <div className="flex gap-2">

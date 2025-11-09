@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { usePublicClient } from "wagmi";
 import { formatUnits } from "viem";
 import { fetchTokenPrice } from "@/app/utils/coingecko";
@@ -99,6 +99,41 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
     }
   }, [tokens, STORAGE_KEY]);
 
+  // Fetch USD prices for tokens
+  const fetchPrices = useCallback(
+    async (tokenBalances: TokenBalance[], apiKey: string) => {
+      setFetchingPrices(true);
+      try {
+        const pricePromises = tokenBalances.map(async (token) => {
+          const price = await fetchTokenPrice(token.address, chainId, apiKey);
+          return { address: token.address, price };
+        });
+
+        const prices = await Promise.all(pricePromises);
+
+        // Update balances with prices and calculated USD values
+        setBalances((prevBalances) =>
+          prevBalances.map((balance) => {
+            const priceData = prices.find((p) => p.address.toLowerCase() === balance.address.toLowerCase());
+            const usdPrice = priceData?.price ?? undefined;
+            const usdValue = usdPrice ? parseFloat(balance.balance) * usdPrice : undefined;
+
+            return {
+              ...balance,
+              usdPrice,
+              usdValue,
+            };
+          }),
+        );
+      } catch (err) {
+        console.error("Failed to fetch prices:", err);
+      } finally {
+        setFetchingPrices(false);
+      }
+    },
+    [chainId],
+  );
+
   // Fetch balances and prices when tokens change
   useEffect(() => {
     if (tokens.length === 0 || !publicClient) return;
@@ -137,39 +172,7 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
     }
 
     fetchBalances();
-  }, [tokens, publicClient, safeAddress, chainId]);
-
-  // Fetch USD prices for tokens
-  async function fetchPrices(tokenBalances: TokenBalance[], apiKey: string) {
-    setFetchingPrices(true);
-    try {
-      const pricePromises = tokenBalances.map(async (token) => {
-        const price = await fetchTokenPrice(token.address, chainId, apiKey);
-        return { address: token.address, price };
-      });
-
-      const prices = await Promise.all(pricePromises);
-
-      // Update balances with prices and calculated USD values
-      setBalances((prevBalances) =>
-        prevBalances.map((balance) => {
-          const priceData = prices.find((p) => p.address.toLowerCase() === balance.address.toLowerCase());
-          const usdPrice = priceData?.price ?? undefined;
-          const usdValue = usdPrice ? parseFloat(balance.balance) * usdPrice : undefined;
-
-          return {
-            ...balance,
-            usdPrice,
-            usdValue,
-          };
-        }),
-      );
-    } catch (err) {
-      console.error("Failed to fetch prices:", err);
-    } finally {
-      setFetchingPrices(false);
-    }
-  }
+  }, [tokens, publicClient, safeAddress, chainId, fetchPrices]);
 
   // Refresh prices manually
   function handleRefreshPrices() {

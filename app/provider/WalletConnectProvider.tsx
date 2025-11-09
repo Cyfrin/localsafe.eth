@@ -102,7 +102,7 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
           // Auto-respond to wallet_getCapabilities (EIP-5792)
           if (rpcRequest.method === "wallet_getCapabilities") {
             try {
-              const walletAddress = rpcRequest.params?.[0];
+              // const walletAddress = rpcRequest.params?.[0];
               const sessions = wallet.getActiveSessions();
               const session = Object.values(sessions).find((s) => s.topic === topic);
 
@@ -112,7 +112,7 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
                 const accounts = Object.values(session.namespaces)[0]?.accounts || [];
                 const firstAccount = accounts[0];
                 if (firstAccount) {
-                  const [, chainIdStr, safeAddr] = firstAccount.split(":");
+                  const [, chainIdStr] = firstAccount.split(":");
                   const chainIdNum = parseInt(chainIdStr);
 
                   // Return capabilities for this Safe on this chain
@@ -145,7 +145,7 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
           setPendingRequest(request);
         });
 
-        wallet.on("session_delete", ({ topic }: { topic: string }) => {
+        wallet.on("session_delete", () => {
           const activeSessions = wallet.getActiveSessions();
           setSessions(Object.values(activeSessions));
         });
@@ -208,11 +208,6 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
         // Update sessions
         const activeSessions = web3wallet.getActiveSessions();
         setSessions(Object.values(activeSessions));
-
-        // Log the approved session to verify properties were included
-        const approvedSession = Object.values(activeSessions).find(
-          (s) => s.pairingTopic === pendingProposal.pairingTopic
-        );
 
         setPendingProposal(null);
         setError(null);

@@ -52,7 +52,7 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
   // Hooks
   const { chain, address: connectedAddress } = useAccount();
   const navigate = useNavigate();
-  const { signSafeTransaction, broadcastSafeTransaction, isOwner, hasSigned, safeInfo, kit } = useSafe(safeAddress);
+  const { signSafeTransaction, broadcastSafeTransaction, isOwner, safeInfo, kit } = useSafe(safeAddress);
   const { removeTransaction, getAllTransactions, saveTransaction } = useSafeTxContext();
   const toast = useToast();
 
@@ -151,7 +151,7 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
     return () => {
       cancelled = true;
     };
-  }, [kit, chain, txHash, safeAddress, getAllTransactions]);
+  }, [kit, chain, txHash, safeAddress, getAllTransactions, toast]);
 
   /**
    * Calculate EIP-712 hashes when transaction is loaded
@@ -695,7 +695,7 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
                               className="flex flex-col items-start py-3"
                             >
                               <span className="font-semibold">Execute Transaction</span>
-                              <span className="text-xs opacity-70">Execute immediately (you're the last signer)</span>
+                              <span className="text-xs opacity-70">Execute immediately (you&apos;re the last signer)</span>
                             </button>
                           </li>
                         </ul>
@@ -832,7 +832,7 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
                             data-testid="tx-details-add-signature-btn"
                           >
                             <span className="font-semibold">➕ Add Signature</span>
-                            <span className="text-xs opacity-70">Manually add another signer's signature</span>
+                            <span className="text-xs opacity-70">Manually add another signer&apos;s signature</span>
                           </button>
                         </li>
                       </ul>

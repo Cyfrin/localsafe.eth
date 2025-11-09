@@ -75,7 +75,7 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
             safeAddress,
             chain.id,
             messageHash,
-            safeInfo.version || "1.4.1"
+            safeInfo.version || "1.4.1",
           );
           setSafeHashes(wrappedHashes);
         }
@@ -94,7 +94,7 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
             safeAddress,
             chain.id,
             typedDataHash.eip712Hash,
-            safeInfo.version || "1.4.1"
+            safeInfo.version || "1.4.1",
           );
           setSafeHashes(wrappedHashes);
         }
@@ -111,7 +111,8 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
   const loadExample = () => {
     setEip712Input(JSON.stringify(EXAMPLE_EIP712, null, 2));
     setError(null);
-    setRawHashes(null); setSafeHashes(null);
+    setRawHashes(null);
+    setSafeHashes(null);
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -123,7 +124,8 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
       const content = e.target?.result as string;
       setEip712Input(content);
       setError(null);
-      setRawHashes(null); setSafeHashes(null);
+      setRawHashes(null);
+      setSafeHashes(null);
     };
     reader.onerror = () => setError("Failed to read file");
     reader.readAsText(file);
@@ -134,15 +136,15 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
       <div className="mb-4">
         <BtnCancel to={`/safe/${safeAddress}`} label="Back to Safe" />
       </div>
-      <h1 className="text-3xl font-bold mb-6">Sign Message</h1>
+      <h1 className="mb-6 text-3xl font-bold">Sign Message</h1>
 
       {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Left Column - Input */}
         <div>
           {/* Message Type Selector */}
           <div className="mb-4">
-            <h3 className="text-sm font-semibold mb-2 opacity-60">Message Type</h3>
+            <h3 className="mb-2 text-sm font-semibold opacity-60">Message Type</h3>
             <div className="flex gap-4">
               <label className="label cursor-pointer gap-2">
                 <input
@@ -153,7 +155,8 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
                   onChange={() => {
                     setMessageType("personal_sign");
                     setError(null);
-                    setRawHashes(null); setSafeHashes(null);
+                    setRawHashes(null);
+                    setSafeHashes(null);
                   }}
                 />
                 <span className="label-text">Personal Sign (EIP-191)</span>
@@ -167,7 +170,8 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
                   onChange={() => {
                     setMessageType("eip712");
                     setError(null);
-                    setRawHashes(null); setSafeHashes(null);
+                    setRawHashes(null);
+                    setSafeHashes(null);
                   }}
                 />
                 <span className="label-text">Typed Data (EIP-712)</span>
@@ -177,7 +181,7 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
 
           {/* Input Area */}
           <div className="form-control">
-            <div className="flex items-center justify-between mb-2">
+            <div className="mb-2 flex items-center justify-between">
               <h3 className="text-sm font-semibold opacity-60">
                 {messageType === "personal_sign" ? "Message to Sign" : "EIP-712 JSON Data"}
               </h3>
@@ -201,18 +205,20 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
                 value={personalMessage}
                 onChange={(e) => {
                   setPersonalMessage(e.target.value);
-                  setRawHashes(null); setSafeHashes(null);
+                  setRawHashes(null);
+                  setSafeHashes(null);
                   setError(null);
                 }}
               />
             ) : (
               <textarea
-                className="textarea textarea-bordered font-mono text-xs h-96 w-full"
+                className="textarea textarea-bordered h-96 w-full font-mono text-xs"
                 placeholder="Paste your EIP-712 JSON data here..."
                 value={eip712Input}
                 onChange={(e) => {
                   setEip712Input(e.target.value);
-                  setRawHashes(null); setSafeHashes(null);
+                  setRawHashes(null);
+                  setSafeHashes(null);
                   setError(null);
                 }}
               />
@@ -229,11 +235,11 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
 
         {/* Right Column - Results */}
         <div>
-          <h3 className="text-sm font-semibold mb-4 opacity-60">Results</h3>
+          <h3 className="mb-4 text-sm font-semibold opacity-60">Results</h3>
 
           {!rawHashes && !safeHashes && !error && (
-            <div className="text-center py-20 opacity-60">
-              <p>Enter a message and click "Calculate Hashes" to see results</p>
+            <div className="py-20 text-center opacity-60">
+              <p>Enter a message and click &quot;Calculate Hashes&quot; to see results</p>
             </div>
           )}
 
@@ -246,8 +252,8 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
 
           {/* Raw Message Hashes (EIP-712 only) */}
           {rawHashes && messageType === "eip712" && (
-            <div className="space-y-4 mb-8">
-              <h4 className="text-md font-bold border-b pb-2">Raw EIP-712 Hashes</h4>
+            <div className="mb-8 space-y-4">
+              <h4 className="text-md border-b pb-2 font-bold">Raw EIP-712 Hashes</h4>
 
               <div>
                 <label className="label">
@@ -281,7 +287,7 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
           {/* SafeMessage Wrapped Hashes */}
           {safeHashes && (
             <div className="space-y-4">
-              <h4 className="text-md font-bold border-b pb-2">SafeMessage-Wrapped Hashes</h4>
+              <h4 className="text-md border-b pb-2 font-bold">SafeMessage-Wrapped Hashes</h4>
 
               <div>
                 <label className="label">
@@ -291,7 +297,9 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
                   <pre className="px-4 text-xs break-all">{safeHashes.eip712Hash}</pre>
                 </div>
                 <label className="label">
-                  <span className="label-text-alt text-warning font-semibold">← This is what each signer will sign</span>
+                  <span className="label-text-alt text-warning font-semibold">
+                    ← This is what each signer will sign
+                  </span>
                 </label>
               </div>
 
@@ -315,10 +323,7 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
 
               {/* Sign Message Button */}
               <div className="mt-6">
-                <button
-                  className="btn btn-success btn-block"
-                  onClick={handleSign}
-                >
+                <button className="btn btn-success btn-block" onClick={handleSign}>
                   Sign Message
                 </button>
               </div>

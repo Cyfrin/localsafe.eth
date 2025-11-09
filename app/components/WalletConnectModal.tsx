@@ -10,6 +10,34 @@ type WalletConnectModalProps = {
   onClose: () => void;
 };
 
+type NamespaceValue = {
+  chains?: string[];
+  methods?: string[];
+  events?: string[];
+};
+
+type Namespace = {
+  accounts: string[];
+  methods: string[];
+  events: string[];
+  chains: string[];
+};
+
+type ProposalMetadata = {
+  name?: string;
+  icons?: string[];
+  url?: string;
+  description?: string;
+};
+
+type ProposalType = {
+  requiredNamespaces?: Record<string, NamespaceValue>;
+  optionalNamespaces?: Record<string, NamespaceValue>;
+  proposer?: {
+    metadata?: ProposalMetadata;
+  };
+};
+
 export default function WalletConnectModal({ open, onClose }: WalletConnectModalProps) {
   const [activeTab, setActiveTab] = useState(0);
   const [pairingCode, setPairingCode] = useState("");
@@ -21,7 +49,6 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
   const {
     projectId,
     setProjectId,
-    isInitialized,
     sessions,
     pendingProposal,
     pair,
@@ -70,15 +97,15 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
     }
 
     try {
-      const proposal = pendingProposal as any;
+      const proposal = pendingProposal as ProposalType;
 
       const requiredNamespaces = proposal.requiredNamespaces || {};
       const optionalNamespaces = proposal.optionalNamespaces || {};
 
-      const namespaces: Record<string, any> = {};
+      const namespaces: Record<string, Namespace> = {};
 
       // Process required namespaces
-      Object.entries(requiredNamespaces).forEach(([key, value]: [string, any]) => {
+      Object.entries(requiredNamespaces).forEach(([key, value]: [string, NamespaceValue]) => {
         const chains = value.chains || [];
         const methods = value.methods || [];
         const events = value.events || [];
@@ -95,7 +122,7 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
       });
 
       // Process optional namespaces if any
-      Object.entries(optionalNamespaces).forEach(([key, value]: [string, any]) => {
+      Object.entries(optionalNamespaces).forEach(([key, value]: [string, NamespaceValue]) => {
         if (namespaces[key]) {
           // Merge with existing namespace
           const chains = value.chains || [];
@@ -289,10 +316,10 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
                     <div className="space-y-4">
                       <div className="flex flex-col items-center">
                         <div className="bg-primary mb-4 flex h-16 w-16 items-center justify-center rounded-lg">
-                          {(pendingProposal as any).proposer?.metadata?.icons?.[0] ? (
+                          {(pendingProposal as ProposalType).proposer?.metadata?.icons?.[0] ? (
                             <img
-                              src={(pendingProposal as any).proposer.metadata.icons[0]}
-                              alt={(pendingProposal as any).proposer.metadata.name}
+                              src={(pendingProposal as ProposalType).proposer?.metadata?.icons?.[0] || ""}
+                              alt={(pendingProposal as ProposalType).proposer?.metadata?.name || "dApp"}
                               className="h-full w-full rounded-lg"
                             />
                           ) : (
@@ -300,11 +327,11 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
                           )}
                         </div>
                         <h4 className="mb-2 text-xl font-bold">
-                          {(pendingProposal as any).proposer?.metadata?.name || "Unknown dApp"} wants to connect
+                          {(pendingProposal as ProposalType).proposer?.metadata?.name || "Unknown dApp"} wants to connect
                         </h4>
-                        <p className="mb-2 text-center">{(pendingProposal as any).proposer?.metadata?.url || ""}</p>
+                        <p className="mb-2 text-center">{(pendingProposal as ProposalType).proposer?.metadata?.url || ""}</p>
                         <p className="mb-4 text-center text-sm text-gray-500">
-                          {(pendingProposal as any).proposer?.metadata?.description || ""}
+                          {(pendingProposal as ProposalType).proposer?.metadata?.description || ""}
                         </p>
                       </div>
 
@@ -316,14 +343,14 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
 
                       <div className="bg-base-200 rounded-box p-4">
                         <h5 className="mb-2 font-semibold">Requested Permissions:</h5>
-                        {Object.entries((pendingProposal as any).requiredNamespaces || {}).map(
-                          ([namespace, details]: [string, any]) => (
+                        {Object.entries((pendingProposal as ProposalType).requiredNamespaces || {}).map(
+                          ([namespace, details]: [string, NamespaceValue]) => (
                             <div key={namespace} className="mb-2">
                               <p className="font-medium">{namespace}:</p>
                               <div className="pl-4 text-sm">
                                 {details.chains && <p>Chains: {details.chains.join(", ")}</p>}
-                                <p>Methods: {details.methods.join(", ")}</p>
-                                <p>Events: {details.events.join(", ")}</p>
+                                <p>Methods: {details.methods?.join(", ") || ""}</p>
+                                <p>Events: {details.events?.join(", ") || ""}</p>
                               </div>
                             </div>
                           ),
