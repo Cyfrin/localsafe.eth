@@ -145,12 +145,12 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
       const includeChainId = safeVersion >= "1.3.0";
       const domain = includeChainId
         ? {
-            chainId: chainId,
-            verifyingContract: safeAddress,
-          }
+          chainId: chainId,
+          verifyingContract: safeAddress,
+        }
         : {
-            verifyingContract: safeAddress,
-          };
+          verifyingContract: safeAddress,
+        };
 
       // SafeMessage EIP-712 types
       const types = {
@@ -291,15 +291,6 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
           signature: sig.data,
           signer: sig.signer,
         }));
-
-        console.log("Sending signature to WalletConnect:", {
-          encodedSignature,
-          signatureCount: newSignedMessage.signatures.size,
-          signatures: signaturesArray,
-          safeAddress,
-          method,
-          messageData: newSignedMessage.data,
-        });
 
         await approveRequest(currentRequest.topic, {
           id: currentRequest.id,

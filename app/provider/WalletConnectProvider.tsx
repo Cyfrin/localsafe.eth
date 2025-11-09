@@ -133,7 +133,6 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
                     },
                   });
 
-                  console.log("Auto-responded to wallet_getCapabilities:", capabilities);
                   return;
                 }
               }
@@ -200,14 +199,6 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
           }),
         };
 
-        console.log("Approving WalletConnect session with:", {
-          safeAddress,
-          chainId,
-          chainIdHex: `0x${Number(chainId).toString(16)}`,
-          sessionProperties,
-          namespaces,
-        });
-
         await web3wallet.approveSession({
           id: pendingProposal.id,
           namespaces,
@@ -222,8 +213,6 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
         const approvedSession = Object.values(activeSessions).find(
           (s) => s.pairingTopic === pendingProposal.pairingTopic
         );
-        console.log("Approved session:", approvedSession);
-        console.log("Session properties:", approvedSession?.sessionProperties);
 
         setPendingProposal(null);
         setError(null);
