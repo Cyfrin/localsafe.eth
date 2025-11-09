@@ -361,15 +361,62 @@ export default function NetworkForm({ setShowForm, onSubmit, initialState, onCan
         </fieldset>
       </div>
 
-      {/* Advanced Settings - MultiSend Configuration */}
+      {/* Advanced Settings - Safe Contract Configuration */}
       <details className="collapse-arrow bg-base-200 collapse">
         <summary className="collapse-title text-sm font-medium">Advanced Settings (Optional)</summary>
         <div className="collapse-content space-y-4">
           <p className="mb-2 text-xs text-gray-400">
-            Configure MultiSend contract addresses for transaction batching. Leave empty to use Safe SDK defaults.
+            Configure Safe contract addresses for this network. Leave empty to use Safe SDK defaults.
           </p>
+
+          <div className="divider text-xs">Core Contracts</div>
+
           <fieldset className="fieldset">
-            <legend className="fieldset-legend">MultiSend Address (Optional)</legend>
+            <legend className="fieldset-legend">Safe Proxy Factory (Optional)</legend>
+            <input
+              id="networkform-safeproxyfactory"
+              className="input input-bordered w-full"
+              value={state.safeProxyFactoryAddress || ""}
+              onChange={(e) => handleChange("safeProxyFactoryAddress", e.target.value)}
+              placeholder="0x... (optional)"
+            />
+            <label className="label">
+              <span className="label-text-alt">Factory contract for deploying new Safe proxies</span>
+            </label>
+          </fieldset>
+
+          <fieldset className="fieldset">
+            <legend className="fieldset-legend">Safe Singleton (Optional)</legend>
+            <input
+              id="networkform-safesingleton"
+              className="input input-bordered w-full"
+              value={state.safeSingletonAddress || ""}
+              onChange={(e) => handleChange("safeSingletonAddress", e.target.value)}
+              placeholder="0x... (optional)"
+            />
+            <label className="label">
+              <span className="label-text-alt">Master copy contract for Safe logic</span>
+            </label>
+          </fieldset>
+
+          <fieldset className="fieldset">
+            <legend className="fieldset-legend">Fallback Handler (Optional)</legend>
+            <input
+              id="networkform-fallbackhandler"
+              className="input input-bordered w-full"
+              value={state.fallbackHandlerAddress || ""}
+              onChange={(e) => handleChange("fallbackHandlerAddress", e.target.value)}
+              placeholder="0x... (optional)"
+            />
+            <label className="label">
+              <span className="label-text-alt">Handler for fallback calls and message signatures</span>
+            </label>
+          </fieldset>
+
+          <div className="divider text-xs">Transaction Batching</div>
+
+          <fieldset className="fieldset">
+            <legend className="fieldset-legend">MultiSend (Optional)</legend>
             <input
               id="networkform-multisend"
               className="input input-bordered w-full"
@@ -381,8 +428,9 @@ export default function NetworkForm({ setShowForm, onSubmit, initialState, onCan
               <span className="label-text-alt">Used for batching multiple transactions together</span>
             </label>
           </fieldset>
+
           <fieldset className="fieldset">
-            <legend className="fieldset-legend">MultiSend Call Only Address (Optional)</legend>
+            <legend className="fieldset-legend">MultiSend Call Only (Optional)</legend>
             <input
               id="networkform-multisendcallonly"
               className="input input-bordered w-full"

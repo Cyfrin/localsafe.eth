@@ -178,8 +178,16 @@ export interface NetworkFormState {
   id: string | number;
   blockExplorerUrl?: string;
   blockExplorerName?: string;
+  // Safe contract addresses (optional overrides)
+  safeProxyFactoryAddress?: string;
+  safeSingletonAddress?: string;
+  fallbackHandlerAddress?: string;
   multiSendAddress?: string;
   multiSendCallOnlyAddress?: string;
+  signMessageLibAddress?: string;
+  createCallAddress?: string;
+  simulateTxAccessorAddress?: string;
+  tokenCallbackHandlerAddress?: string;
   nativeCurrency: {
     name: string;
     symbol: string;

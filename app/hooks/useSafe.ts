@@ -63,7 +63,7 @@ const SAFE_ABI = [
 export default function useSafe(safeAddress: `0x${string}`) {
   const { address: signer, chain, connector, isConnected } = useAccount();
 
-  const { safeWalletData, contractNetworks, addSafe, removeSafe } = useSafeWalletContext();
+  const { safeWalletData, contractNetworks, addSafe, removeSafe, getSafeMultiSendConfig } = useSafeWalletContext();
   const { saveTransaction, getTransaction } = useSafeTxContext();
 
   // Get Safe name from addressBook for current chain
@@ -273,13 +273,30 @@ export default function useSafe(safeAddress: `0x${string}`) {
         // Build SafeConfig using helper for ProtocolKit compatibility
         // Ensure signer address is properly checksummed
         const checksummedSigner = signer ? getAddress(signer) : undefined;
+
+        // Merge custom multiSend config if available
+        let mergedContractNetworks = contractNetworks;
+        if (chainId && contractNetworks) {
+          const customMultiSend = getSafeMultiSendConfig(chainId, safeAddress as `0x${string}`);
+          if (customMultiSend && (customMultiSend.multiSendAddress || customMultiSend.multiSendCallOnlyAddress)) {
+            mergedContractNetworks = {
+              ...contractNetworks,
+              [chainId]: {
+                ...contractNetworks[chainId],
+                ...(customMultiSend.multiSendAddress && { multiSendAddress: customMultiSend.multiSendAddress }),
+                ...(customMultiSend.multiSendCallOnlyAddress && { multiSendCallOnlyAddress: customMultiSend.multiSendCallOnlyAddress }),
+              },
+            };
+          }
+        }
+
         const config: SafeConfig = createPredictionConfig(
           provider,
           checksummedSigner,
           undeployedSafe.props.safeAccountConfig.owners,
           undeployedSafe.props.safeAccountConfig.threshold,
           undeployedSafe.props.saltNonce,
-          contractNetworks,
+          mergedContractNetworks,
         );
         const kit = await Safe.init(config);
         let deploymentTx, kitClient, txHash;
@@ -377,7 +394,10 @@ export default function useSafe(safeAddress: `0x${string}`) {
           data: tx.data || "0x",
         }));
 
-        const options: any = {
+        const options: {
+          transactions: Array<{ to: string; value: string; data: string; operation?: number }>;
+          options?: { nonce: number };
+        } = {
           transactions: normalizedTxs,
         };
 

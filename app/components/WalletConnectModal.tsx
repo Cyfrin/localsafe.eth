@@ -122,27 +122,28 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
       });
 
       // Process optional namespaces if any
-      Object.entries(optionalNamespaces).forEach(([key, value]: [string, NamespaceValue]) => {
+      Object.entries(optionalNamespaces).forEach(([key, value]) => {
+        const namespaceValue = value as { chains?: string[]; methods?: string[]; events?: string[] };
         if (namespaces[key]) {
           // Merge with existing namespace
-          const chains = value.chains || [];
+          const chains = namespaceValue.chains || [];
           const additionalAccounts = chains
             .filter((c: string) => !namespaces[key].chains.includes(c))
             .map((chainId: string) => `${chainId}:${safeAddress}`);
 
           namespaces[key].accounts = [...namespaces[key].accounts, ...additionalAccounts];
           namespaces[key].chains = [...namespaces[key].chains, ...chains];
-          namespaces[key].methods = [...new Set([...namespaces[key].methods, ...(value.methods || [])])];
-          namespaces[key].events = [...new Set([...namespaces[key].events, ...(value.events || [])])];
+          namespaces[key].methods = [...new Set([...namespaces[key].methods, ...(namespaceValue.methods || [])])];
+          namespaces[key].events = [...new Set([...namespaces[key].events, ...(namespaceValue.events || [])])];
         } else {
           // Create new namespace entry
-          const chains = value.chains || [];
+          const chains = namespaceValue.chains || [];
           const accounts = chains.map((chainId: string) => `${chainId}:${safeAddress}`);
 
           namespaces[key] = {
             accounts,
-            methods: value.methods || [],
-            events: value.events || [],
+            methods: namespaceValue.methods || [],
+            events: namespaceValue.events || [],
             chains,
           };
         }
@@ -163,9 +164,9 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
     }
   };
 
-  const handleDisconnectSession = async (topic: string) => {
+  const handleDisconnectSession = async (sessionTopic: string) => {
     try {
-      await disconnectSession(topic);
+      await disconnectSession(sessionTopic);
     } catch (e) {
       console.error("Failed to disconnect session:", e);
     }
@@ -353,8 +354,8 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
                                 <p>Events: {details.events?.join(", ") || ""}</p>
                               </div>
                             </div>
-                          ),
-                        )}
+                          );
+                        })}
                       </div>
                     </div>
                   ) : (

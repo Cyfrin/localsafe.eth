@@ -10,7 +10,7 @@ import { useConfirm } from "@/app/hooks/useToast";
 interface StorageItem {
   key: string;
   value: string;
-  parsed: any;
+  parsed: unknown;
   isValid: boolean;
 }
 
@@ -55,7 +55,7 @@ export default function AdvancedSettingsClient() {
       if (!key) continue;
 
       const value = localStorage.getItem(key) || "";
-      let parsed: any = value;
+      let parsed: unknown = value;
       let isValid = true;
 
       // Try to parse as JSON
@@ -82,7 +82,7 @@ export default function AdvancedSettingsClient() {
     setStorageItems(items);
   };
 
-  const handleEdit = (key: string, value: string, isValid: boolean, parsed: any) => {
+  const handleEdit = (key: string, value: string, isValid: boolean, parsed: unknown) => {
     setEditingKey(key);
     // If it's valid JSON, format it with indentation; otherwise use raw value
     setEditValue(isValid ? JSON.stringify(parsed, null, 2) : value);
@@ -132,7 +132,7 @@ export default function AdvancedSettingsClient() {
   };
 
   const handleExportAll = () => {
-    const data: Record<string, any> = {};
+    const data: Record<string, unknown> = {};
     storageItems.forEach((item) => {
       data[item.key] = item.isValid ? item.parsed : item.value;
     });

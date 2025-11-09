@@ -7,6 +7,23 @@ import type { SessionTypes, ProposalTypes, SignClientTypes } from "@walletconnec
 const WC_PROJECT_ID_STORAGE_KEY = "walletconnect-project-id";
 const DEFAULT_PROJECT_ID = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
 
+interface NamespaceConfig {
+  accounts: string[];
+  methods: string[];
+  events: string[];
+  chains: string[];
+}
+
+interface WalletConnectResponse {
+  id: number;
+  jsonrpc: string;
+  result?: unknown;
+  error?: {
+    code: number;
+    message: string;
+  };
+}
+
 export interface WalletConnectContextType {
   web3wallet: IWalletKit | null;
   sessions: SessionTypes.Struct[];
@@ -16,8 +33,12 @@ export interface WalletConnectContextType {
   approveSession: (namespaces: Record<string, any>, safeAddress: string, chainId: number) => Promise<void>;
   rejectSession: () => Promise<void>;
   disconnectSession: (topic: string) => Promise<void>;
-  approveRequest: (topic: string, response: any) => Promise<void>;
-  rejectRequest: (topic: string, error: any, requestId?: number) => Promise<void>;
+  approveRequest: (topic: string, response: WalletConnectResponse) => Promise<void>;
+  rejectRequest: (
+    topic: string,
+    error: { code: number; message: string },
+    requestId?: number,
+  ) => Promise<void>;
   clearPendingRequest: () => void;
   error: Error | null;
   isInitialized: boolean;
@@ -90,7 +111,7 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
         setSessions(Object.values(activeSessions));
 
         // Set up event listeners
-        wallet.on("session_proposal", (args: any) => {
+        wallet.on("session_proposal", (args: { params: ProposalTypes.Struct }) => {
           setPendingProposal(args.params);
           setError(null);
         });
@@ -292,7 +313,7 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const rejectRequest = useCallback(
-    async (topic: string, error: any, requestId?: number) => {
+    async (topic: string, error: { code: number; message: string }, requestId?: number) => {
       if (!web3wallet) {
         throw new Error("Web3Wallet not initialized");
       }
@@ -304,7 +325,7 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       try {
-        const response = {
+        const response: WalletConnectResponse = {
           id,
           jsonrpc: "2.0",
           error,
