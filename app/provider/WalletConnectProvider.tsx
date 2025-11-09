@@ -325,15 +325,13 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       try {
-        const response: WalletConnectResponse = {
-          id,
-          jsonrpc: "2.0",
-          error,
-        };
-
         await web3wallet.respondSessionRequest({
           topic,
-          response,
+          response: {
+            id,
+            jsonrpc: "2.0",
+            error,
+          },
         });
 
         setPendingRequest(null);

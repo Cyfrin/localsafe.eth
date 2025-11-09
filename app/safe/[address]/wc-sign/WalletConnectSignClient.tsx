@@ -94,7 +94,7 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
       switch (method) {
         case "personal_sign": {
           // For personal_sign, decode hex message first, then apply EIP-191
-          const hexMessage = signParams[0];
+          const hexMessage = signParams[0] as string;
           let decodedMessage: string;
 
           if (hexMessage.startsWith("0x")) {
@@ -115,7 +115,7 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
         }
         case "eth_sign": {
           // For eth_sign, apply EIP-191 to the literal message
-          const message = signParams[1];
+          const message = signParams[1] as string;
           safeMessageMessage = ethers.hashMessage(message);
           break;
         }
@@ -194,7 +194,7 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
       switch (method) {
         case "personal_sign": {
           // personal_sign params: [message, address]
-          const hexMessage = signParams[0];
+          const hexMessage = signParams[0] as string;
 
           // Decode the hex message to a string for Safe SDK
           if (hexMessage.startsWith("0x")) {
