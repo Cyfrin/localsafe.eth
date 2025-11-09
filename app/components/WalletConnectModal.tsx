@@ -354,8 +354,8 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
                                 <p>Events: {details.events?.join(", ") || ""}</p>
                               </div>
                             </div>
-                          );
-                        })}
+                          ),
+                        )}
                       </div>
                     </div>
                   ) : (
