@@ -155,3 +155,111 @@ export function validateTypedData(typedData: any): boolean {
   }
   return true;
 }
+
+/**
+ * Calculate inner message hash from message data
+ * Handles both string messages (personal_sign) and EIP-712 typed data
+ *
+ * @param messageData - The message data (string or EIP-712 typed data object)
+ * @returns The inner message hash
+ */
+export function calculateInnerMessageHash(
+  messageData: string | { domain: any; types: Record<string, any>; message: any },
+): string {
+  if (typeof messageData === "string") {
+    // For string messages, apply EIP-191 hash
+    return ethers.hashMessage(messageData);
+  } else {
+    // For EIP-712 typed data, use the EIP-712 hash
+    const { domain, types, message } = messageData;
+    return ethers.TypedDataEncoder.hash(domain, types, message);
+  }
+}
+
+/**
+ * Calculate SafeMessage hashes from raw message data
+ * This is a convenience function that combines calculateInnerMessageHash and calculateSafeMessageHashes
+ *
+ * @param safeAddress - The Safe contract address
+ * @param chainId - The chain ID
+ * @param messageData - The message data (string or EIP-712 typed data object)
+ * @param safeVersion - The Safe contract version (default: "1.4.1")
+ * @returns Object containing all SafeMessage hashes including the inner message hash
+ */
+export function calculateSafeMessageHashesFromData(
+  safeAddress: string,
+  chainId: number,
+  messageData: string | { domain: any; types: Record<string, any>; message: any },
+  safeVersion = "1.4.1",
+): EIP712HashResult {
+  const innerMessageHash = calculateInnerMessageHash(messageData);
+  return calculateSafeMessageHashes(safeAddress, chainId, innerMessageHash, safeVersion);
+}
+
+/**
+ * Calculate EIP-712 hashes for SafeTx structure
+ *
+ * @param safeAddress - The Safe contract address
+ * @param chainId - The chain ID
+ * @param safeTx - The Safe transaction data
+ * @returns Object containing domain hash, message hash, and final EIP-712 hash
+ */
+export function calculateSafeTxHashes(
+  safeAddress: string,
+  chainId: number,
+  safeTx: {
+    to: string;
+    value: bigint | string;
+    data: string;
+    operation: number;
+    safeTxGas: bigint | string;
+    baseGas: bigint | string;
+    gasPrice: bigint | string;
+    gasToken: string;
+    refundReceiver: string;
+    nonce: bigint | string;
+  },
+): EIP712HashResult {
+  const domain = {
+    chainId: chainId,
+    verifyingContract: safeAddress,
+  };
+
+  const types = {
+    SafeTx: [
+      { name: "to", type: "address" },
+      { name: "value", type: "uint256" },
+      { name: "data", type: "bytes" },
+      { name: "operation", type: "uint8" },
+      { name: "safeTxGas", type: "uint256" },
+      { name: "baseGas", type: "uint256" },
+      { name: "gasPrice", type: "uint256" },
+      { name: "gasToken", type: "address" },
+      { name: "refundReceiver", type: "address" },
+      { name: "nonce", type: "uint256" },
+    ],
+  };
+
+  const message = {
+    to: safeTx.to,
+    value: safeTx.value,
+    data: safeTx.data,
+    operation: safeTx.operation,
+    safeTxGas: safeTx.safeTxGas,
+    baseGas: safeTx.baseGas,
+    gasPrice: safeTx.gasPrice,
+    gasToken: safeTx.gasToken,
+    refundReceiver: safeTx.refundReceiver,
+    nonce: safeTx.nonce,
+  };
+
+  const domainHash = calculateDomainHash(domain);
+  const messageHash = calculateStructHash("SafeTx", types, message);
+  const eip712Hash = calculateEIP712Hash(domain, types, message);
+
+  return {
+    domainHash,
+    messageHash,
+    eip712Hash,
+  };
+}

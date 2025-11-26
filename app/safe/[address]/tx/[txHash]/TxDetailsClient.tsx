@@ -11,8 +11,8 @@ import { useSafeTxContext } from "@/app/provider/SafeTxProvider";
 import DataPreview from "@/app/components/DataPreview";
 import { BroadcastModal } from "@/app/components/BroadcastModal";
 import { useAccount } from "wagmi";
-import { ethers } from "ethers";
 import { useToast } from "@/app/hooks/useToast";
+import { calculateSafeTxHashes } from "@/app/utils/messageHashing";
 
 /**
  * Maps chain IDs to chain names expected by Cyfrin tools
@@ -161,28 +161,7 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
     if (!safeTx || !safeInfo || !chain) return;
 
     try {
-      // Construct EIP-712 typed data for Safe transactions
-      const domain = {
-        chainId: chain.id,
-        verifyingContract: safeAddress,
-      };
-
-      const types = {
-        SafeTx: [
-          { name: "to", type: "address" },
-          { name: "value", type: "uint256" },
-          { name: "data", type: "bytes" },
-          { name: "operation", type: "uint8" },
-          { name: "safeTxGas", type: "uint256" },
-          { name: "baseGas", type: "uint256" },
-          { name: "gasPrice", type: "uint256" },
-          { name: "gasToken", type: "address" },
-          { name: "refundReceiver", type: "address" },
-          { name: "nonce", type: "uint256" },
-        ],
-      };
-
-      const message = {
+      const hashes = calculateSafeTxHashes(safeAddress, chain.id, {
         to: safeTx.data.to,
         value: safeTx.data.value,
         data: safeTx.data.data,
@@ -193,16 +172,12 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
         gasToken: safeTx.data.gasToken,
         refundReceiver: safeTx.data.refundReceiver,
         nonce: safeTx.data.nonce,
-      };
-
-      const domainHash = ethers.TypedDataEncoder.hashDomain(domain);
-      const messageHash = ethers.TypedDataEncoder.hashStruct("SafeTx", types, message);
-      const eip712Hash = ethers.TypedDataEncoder.hash(domain, types, message);
+      });
 
       setEip712Data({
-        domainHash,
-        messageHash,
-        eip712Hash,
+        domainHash: hashes.domainHash,
+        messageHash: hashes.messageHash,
+        eip712Hash: hashes.eip712Hash,
       });
     } catch (err) {
       console.error("Failed to calculate EIP-712 hashes:", err);

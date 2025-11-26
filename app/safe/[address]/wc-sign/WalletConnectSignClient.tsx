@@ -12,6 +12,11 @@ import EIP712DataDisplay from "@/app/components/EIP712DataDisplay";
 import { useAccount, useChainId } from "wagmi";
 import { ethers } from "ethers";
 import type { SignClientTypes } from "@walletconnect/types";
+import {
+  calculatePersonalSignHash,
+  calculateTypedDataHash,
+  calculateSafeMessageHashes,
+} from "@/app/utils/messageHashing";
 
 export default function WalletConnectSignClient({ safeAddress }: { safeAddress: `0x${string}` }) {
   const navigate = useNavigate();
@@ -96,28 +101,13 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
         case "personal_sign": {
           // For personal_sign, decode hex message first, then apply EIP-191
           const hexMessage = signParams[0] as string;
-          let decodedMessage: string;
-
-          if (hexMessage.startsWith("0x")) {
-            try {
-              // Decode hex to string
-              decodedMessage = ethers.toUtf8String(hexMessage);
-            } catch {
-              // If decoding fails, use the hex string as-is
-              decodedMessage = hexMessage;
-            }
-          } else {
-            decodedMessage = hexMessage;
-          }
-
-          // Apply EIP-191 hash to the decoded message
-          safeMessageMessage = ethers.hashMessage(decodedMessage);
+          safeMessageMessage = calculatePersonalSignHash(hexMessage);
           break;
         }
         case "eth_sign": {
           // For eth_sign, apply EIP-191 to the literal message
           const message = signParams[1] as string;
-          safeMessageMessage = ethers.hashMessage(message);
+          safeMessageMessage = calculatePersonalSignHash(message);
           break;
         }
         case "eth_signTypedData":
@@ -125,16 +115,16 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
           // For typed data, the SafeMessage is the EIP-712 hash of the typed data itself
           const typedDataString = signParams[1];
           const typedData = typeof typedDataString === "string" ? JSON.parse(typedDataString) : typedDataString;
-          const { domain, types, message } = typedData;
 
-          if (!domain || !types || !message) {
+          if (!typedData.domain || !typedData.types || !typedData.message) {
             console.error("Invalid typed data structure");
             setEip712Data(null);
             return;
           }
 
           // The SafeMessage for EIP-712 is the hash of the original typed data
-          safeMessageMessage = ethers.TypedDataEncoder.hash(domain, types, message);
+          const typedDataHash = calculateTypedDataHash(typedData);
+          safeMessageMessage = typedDataHash.eip712Hash;
           break;
         }
         default:
@@ -143,39 +133,13 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
       }
 
       // Now calculate SafeMessage (what the user is actually signing)
-
-      // SafeMessage EIP-712 domain
-      const safeVersion = safeInfo.version || "1.4.1";
-      const includeChainId = safeVersion >= "1.3.0";
-      const domain = includeChainId
-        ? {
-            chainId: chainId,
-            verifyingContract: safeAddress,
-          }
-        : {
-            verifyingContract: safeAddress,
-          };
-
-      // SafeMessage EIP-712 types
-      const types = {
-        SafeMessage: [{ name: "message", type: "bytes" }],
-      };
-
-      // SafeMessage message structure
-      const message = {
-        message: safeMessageMessage,
-      };
-
-      // Calculate the hashes
-      const domainHash = ethers.TypedDataEncoder.hashDomain(domain);
-      const messageHash = ethers.TypedDataEncoder.hashStruct("SafeMessage", types, message);
-      const eip712Hash = ethers.TypedDataEncoder.hash(domain, types, message);
+      const hashes = calculateSafeMessageHashes(safeAddress, chainId, safeMessageMessage, safeInfo.version || "1.4.1");
 
       setEip712Data({
         safeMessage: safeMessageMessage,
-        eip712Hash,
-        domainHash,
-        messageHash,
+        eip712Hash: hashes.eip712Hash,
+        domainHash: hashes.domainHash,
+        messageHash: hashes.messageHash,
       });
     } catch (err) {
       console.error("Failed to calculate EIP-712 hashes:", err);
