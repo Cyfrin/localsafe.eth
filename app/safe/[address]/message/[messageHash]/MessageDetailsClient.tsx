@@ -9,9 +9,9 @@ import { useEffect, useState } from "react";
 import { EthSafeMessage } from "@safe-global/protocol-kit";
 import { useSafeMessageContext } from "@/app/provider/SafeMessageProvider";
 import { useAccount, useChainId } from "wagmi";
-import { ethers } from "ethers";
 import { useToast } from "@/app/hooks/useToast";
 import { useWalletConnect } from "@/app/provider/WalletConnectProvider";
+import { calculateSafeMessageHashesFromData } from "@/app/utils/messageHashing";
 
 export default function MessageDetailsClient({
   safeAddress,
@@ -105,43 +105,18 @@ export default function MessageDetailsClient({
 
     try {
       const msgData = safeMessage.data;
-      let safeMessageMessage: string;
-
-      // Calculate SafeMessage based on message type
-      if (typeof msgData === "string") {
-        // For string messages, apply EIP-191 to the literal string
-        safeMessageMessage = ethers.hashMessage(msgData);
-      } else {
-        // For EIP-712 typed data, use the EIP-712 hash
-        const { domain, types, message } = msgData as any;
-        safeMessageMessage = ethers.TypedDataEncoder.hash(domain, types, message);
-      }
-
-      // SafeMessage EIP-712 domain
-      const safeVersion = safeInfo.version || "1.4.1";
-      const includeChainId = safeVersion >= "1.3.0";
-      const domain = includeChainId
-        ? { chainId: chainId, verifyingContract: safeAddress }
-        : { verifyingContract: safeAddress };
-
-      // SafeMessage EIP-712 types
-      const types = {
-        SafeMessage: [{ name: "message", type: "bytes" }],
-      };
-
-      // SafeMessage message structure
-      const message = { message: safeMessageMessage };
-
-      // Calculate hashes
-      const domainHash = ethers.TypedDataEncoder.hashDomain(domain);
-      const messageHash = ethers.TypedDataEncoder.hashStruct("SafeMessage", types, message);
-      const eip712Hash = ethers.TypedDataEncoder.hash(domain, types, message);
+      const hashes = calculateSafeMessageHashesFromData(
+        safeAddress,
+        chainId,
+        msgData as string | { domain: any; types: Record<string, any>; message: any },
+        safeInfo.version || "1.4.1",
+      );
 
       setEip712Data({
-        safeMessage: safeMessageMessage,
-        eip712Hash,
-        domainHash,
-        messageHash,
+        safeMessage: hashes.safeMessage || "",
+        eip712Hash: hashes.eip712Hash,
+        domainHash: hashes.domainHash,
+        messageHash: hashes.messageHash,
       });
     } catch (err) {
       console.error("Failed to calculate EIP-712 hashes:", err);
