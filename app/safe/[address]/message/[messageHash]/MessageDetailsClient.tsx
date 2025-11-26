@@ -2,6 +2,7 @@
 
 import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
+import EIP712DataDisplay from "@/app/components/EIP712DataDisplay";
 import { useNavigate } from "react-router-dom";
 import useSafe from "@/app/hooks/useSafe";
 import { useEffect, useState } from "react";
@@ -392,32 +393,12 @@ export default function MessageDetailsClient({
 
           {/* EIP-712 Data Section */}
           {eip712Data && (
-            <div className="space-y-4">
-              <div className="divider">EIP-712 Signature Data</div>
-
-              <div className="bg-base-200 rounded-box space-y-3 p-4">
-                <div>
-                  <h4 className="mb-1 text-sm font-semibold">SafeMessage</h4>
-                  <p className="font-mono text-xs break-all">{eip712Data.safeMessage}</p>
-                </div>
-                <div className="rounded-lg border border-info/30 bg-info/10 p-3">
-                  <h4 className="mb-1 text-sm font-semibold">
-                    EIP-712 Digest (SafeMessage Hash)
-                  </h4>
-                  <p className="font-mono text-xs break-all">
-                    {eip712Data.eip712Hash}
-                  </p>
-                </div>
-                <div>
-                  <h4 className="mb-1 text-sm font-semibold">Domain Hash</h4>
-                  <p className="font-mono text-xs break-all">{eip712Data.domainHash}</p>
-                </div>
-                <div>
-                  <h4 className="mb-1 text-sm font-semibold">Message Hash</h4>
-                  <p className="font-mono text-xs break-all">{eip712Data.messageHash}</p>
-                </div>
-              </div>
-            </div>
+            <EIP712DataDisplay
+              domainHash={eip712Data.domainHash}
+              messageHash={eip712Data.messageHash}
+              eip712Hash={eip712Data.eip712Hash}
+              safeMessage={eip712Data.safeMessage}
+            />
           )}
 
           {/* Signatures Section */}

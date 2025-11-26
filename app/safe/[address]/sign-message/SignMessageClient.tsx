@@ -3,8 +3,10 @@
 import { useState } from "react";
 import AppSection from "@/app/components/AppSection";
 import BtnCancel from "@/app/components/BtnCancel";
+import EIP712DataDisplay from "@/app/components/EIP712DataDisplay";
 import useSafe from "@/app/hooks/useSafe";
 import { useAccount } from "wagmi";
+import { keccak256 } from "viem/utils";
 import {
   calculatePersonalSignHash,
   calculateTypedDataHash,
@@ -13,7 +15,7 @@ import {
   type EIP712HashResult,
 } from "@/app/utils/messageHashing";
 
-type MessageType = "personal_sign" | "eip712";
+type MessageType = "personal_sign" | "eip712" | "raw_data";
 
 const EXAMPLE_EIP712 = {
   domain: {
@@ -42,6 +44,7 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
   const [messageType, setMessageType] = useState<MessageType>("personal_sign");
   const [personalMessage, setPersonalMessage] = useState("");
   const [eip712Input, setEip712Input] = useState(JSON.stringify(EXAMPLE_EIP712, null, 2));
+  const [rawDataInput, setRawDataInput] = useState("");
   const [rawHashes, setRawHashes] = useState<EIP712HashResult | null>(null);
   const [safeHashes, setSafeHashes] = useState<EIP712HashResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +82,7 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
           );
           setSafeHashes(wrappedHashes);
         }
-      } else {
+      } else if (messageType === "eip712") {
         // EIP-712
         const typedData = JSON.parse(eip712Input);
         validateTypedData(typedData);
@@ -98,6 +101,46 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
           );
           setSafeHashes(wrappedHashes);
         }
+      } else {
+        // Raw data
+        if (!rawDataInput.trim()) {
+          setError("Please enter raw data (hex string starting with 0x)");
+          return;
+        }
+
+        // Validate hex format
+        let rawDataHex = rawDataInput.trim();
+        if (!rawDataHex.startsWith("0x")) {
+          rawDataHex = `0x${rawDataHex}`;
+        }
+
+        // Validate hex string
+        if (!/^0x[a-fA-F0-9]+$/.test(rawDataHex)) {
+          setError("Invalid hex string format");
+          return;
+        }
+
+        // For raw data, we hash it using keccak256
+        const rawDataHash = keccak256(rawDataHex as `0x${string}`);
+
+        // Store raw hash
+        setRawHashes({
+          domainHash: "", // N/A for raw data
+          messageHash: "", // N/A for raw data
+          eip712Hash: rawDataHash,
+          safeMessage: rawDataHash,
+        });
+
+        // Calculate SafeMessage hashes
+        if (safeAddress && chain?.id && safeInfo) {
+          const wrappedHashes = calculateSafeMessageHashes(
+            safeAddress,
+            chain.id,
+            rawDataHash,
+            safeInfo.version || "1.4.1",
+          );
+          setSafeHashes(wrappedHashes);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to calculate hashes");
@@ -110,6 +153,13 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
 
   const loadExample = () => {
     setEip712Input(JSON.stringify(EXAMPLE_EIP712, null, 2));
+    setError(null);
+    setRawHashes(null);
+    setSafeHashes(null);
+  };
+
+  const handleMessageTypeChange = (newType: MessageType) => {
+    setMessageType(newType);
     setError(null);
     setRawHashes(null);
     setSafeHashes(null);
@@ -145,19 +195,14 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
           {/* Message Type Selector */}
           <div className="mb-4">
             <h3 className="mb-2 text-sm font-semibold opacity-60">Message Type</h3>
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-4">
               <label className="label cursor-pointer gap-2">
                 <input
                   type="radio"
                   name="messageType"
                   className="radio radio-primary"
                   checked={messageType === "personal_sign"}
-                  onChange={() => {
-                    setMessageType("personal_sign");
-                    setError(null);
-                    setRawHashes(null);
-                    setSafeHashes(null);
-                  }}
+                  onChange={() => handleMessageTypeChange("personal_sign")}
                 />
                 <span className="label-text">Personal Sign (EIP-191)</span>
               </label>
@@ -167,14 +212,19 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
                   name="messageType"
                   className="radio radio-primary"
                   checked={messageType === "eip712"}
-                  onChange={() => {
-                    setMessageType("eip712");
-                    setError(null);
-                    setRawHashes(null);
-                    setSafeHashes(null);
-                  }}
+                  onChange={() => handleMessageTypeChange("eip712")}
                 />
                 <span className="label-text">Typed Data (EIP-712)</span>
+              </label>
+              <label className="label cursor-pointer gap-2">
+                <input
+                  type="radio"
+                  name="messageType"
+                  className="radio radio-primary"
+                  checked={messageType === "raw_data"}
+                  onChange={() => handleMessageTypeChange("raw_data")}
+                />
+                <span className="label-text">Raw Data (Hex)</span>
               </label>
             </div>
           </div>
@@ -183,7 +233,11 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
           <div className="form-control">
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-sm font-semibold opacity-60">
-                {messageType === "personal_sign" ? "Message to Sign" : "EIP-712 JSON Data"}
+                {messageType === "personal_sign"
+                  ? "Message to Sign"
+                  : messageType === "eip712"
+                    ? "EIP-712 JSON Data"
+                    : "Raw Data (Hex)"}
               </h3>
               {messageType === "eip712" && (
                 <div className="flex gap-2">
@@ -210,13 +264,25 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
                   setError(null);
                 }}
               />
-            ) : (
+            ) : messageType === "eip712" ? (
               <textarea
                 className="textarea textarea-bordered h-96 w-full font-mono text-xs"
                 placeholder="Paste your EIP-712 JSON data here..."
                 value={eip712Input}
                 onChange={(e) => {
                   setEip712Input(e.target.value);
+                  setRawHashes(null);
+                  setSafeHashes(null);
+                  setError(null);
+                }}
+              />
+            ) : (
+              <textarea
+                className="textarea textarea-bordered h-96 w-full font-mono text-xs"
+                placeholder="Enter raw hex data (e.g., 0x1234... or 1234...)"
+                value={rawDataInput}
+                onChange={(e) => {
+                  setRawDataInput(e.target.value);
                   setRawHashes(null);
                   setSafeHashes(null);
                   setError(null);
@@ -250,37 +316,31 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
             </div>
           )}
 
-          {/* Raw Message Hashes (EIP-712 only) */}
-          {rawHashes && messageType === "eip712" && (
+          {/* Raw Message Hashes (EIP-712 and raw data) */}
+          {rawHashes && (messageType === "eip712" || messageType === "raw_data") && (
             <div className="mb-8 space-y-4">
-              <h4 className="text-md border-b pb-2 font-bold">Raw EIP-712 Hashes</h4>
-
-              <div>
-                <label className="label">
-                  <span className="label-text font-semibold">EIP-712 Hash (Digest)</span>
-                </label>
-                <div className="mockup-code">
-                  <pre className="px-4 text-xs break-all">{rawHashes.eip712Hash}</pre>
+              <h4 className="text-md border-b pb-2 font-bold">
+                {messageType === "eip712" ? "Raw EIP-712 Hashes" : "Raw Data Hash"}
+              </h4>
+              {messageType === "eip712" ? (
+                <EIP712DataDisplay
+                  domainHash={rawHashes.domainHash}
+                  messageHash={rawHashes.messageHash}
+                  eip712Hash={rawHashes.eip712Hash}
+                  showDivider={false}
+                />
+              ) : (
+                <div className="bg-base-200 rounded-box space-y-3 p-4">
+                  <div>
+                    <label className="label">
+                      <span className="label-text font-semibold">Keccak256 Hash</span>
+                    </label>
+                    <div className="mockup-code">
+                      <pre className="px-4 text-xs break-all">{rawHashes.eip712Hash}</pre>
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              <div>
-                <label className="label">
-                  <span className="label-text font-semibold">Domain Hash</span>
-                </label>
-                <div className="mockup-code">
-                  <pre className="px-4 text-xs break-all">{rawHashes.domainHash}</pre>
-                </div>
-              </div>
-
-              <div>
-                <label className="label">
-                  <span className="label-text font-semibold">Message Hash</span>
-                </label>
-                <div className="mockup-code">
-                  <pre className="px-4 text-xs break-all">{rawHashes.messageHash}</pre>
-                </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -289,37 +349,17 @@ export default function SignMessageClient({ safeAddress }: { safeAddress: `0x${s
             <div className="space-y-4">
               <h4 className="text-md border-b pb-2 font-bold">SafeMessage-Wrapped Hashes</h4>
 
-              <div>
-                <label className="label">
-                  <span className="label-text font-semibold">Safe Message Hash</span>
-                </label>
-                <div className="mockup-code">
-                  <pre className="px-4 text-xs break-all">{safeHashes.eip712Hash}</pre>
-                </div>
-                <label className="label">
-                  <span className="label-text-alt text-warning font-semibold">
-                    ← This is what each signer will sign
-                  </span>
-                </label>
-              </div>
+              <EIP712DataDisplay
+                domainHash={safeHashes.domainHash}
+                messageHash={safeHashes.messageHash}
+                eip712Hash={safeHashes.eip712Hash}
+                safeMessage={safeHashes.safeMessage}
+                showDivider={false}
+              />
 
-              <div>
-                <label className="label">
-                  <span className="label-text font-semibold">Domain Hash</span>
-                </label>
-                <div className="mockup-code">
-                  <pre className="px-4 text-xs break-all">{safeHashes.domainHash}</pre>
-                </div>
-              </div>
-
-              <div>
-                <label className="label">
-                  <span className="label-text font-semibold">Message Hash</span>
-                </label>
-                <div className="mockup-code">
-                  <pre className="px-4 text-xs break-all">{safeHashes.messageHash}</pre>
-                </div>
-              </div>
+              <label className="label">
+                <span className="label-text-alt text-warning font-semibold">← This is what each signer will sign</span>
+              </label>
 
               {/* Sign Message Button */}
               <div className="mt-6">
