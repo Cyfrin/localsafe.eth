@@ -8,6 +8,7 @@ import { useToast } from "@/app/hooks/useToast";
 import useSafe from "@/app/hooks/useSafe";
 import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
+import EIP712DataDisplay from "@/app/components/EIP712DataDisplay";
 import { useAccount, useChainId } from "wagmi";
 import { ethers } from "ethers";
 import type { SignClientTypes } from "@walletconnect/types";
@@ -23,9 +24,9 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
 
   const [signParams, setSignParams] = useState<unknown[] | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [requestFromStorage, setRequestFromStorage] = useState<SignClientTypes.EventArguments["session_request"] | null>(
-    null,
-  );
+  const [requestFromStorage, setRequestFromStorage] = useState<
+    SignClientTypes.EventArguments["session_request"] | null
+  >(null);
   const [method, setMethod] = useState<string>("");
   const [eip712Data, setEip712Data] = useState<{
     safeMessage: string;
@@ -148,12 +149,12 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
       const includeChainId = safeVersion >= "1.3.0";
       const domain = includeChainId
         ? {
-          chainId: chainId,
-          verifyingContract: safeAddress,
-        }
+            chainId: chainId,
+            verifyingContract: safeAddress,
+          }
         : {
-          verifyingContract: safeAddress,
-        };
+            verifyingContract: safeAddress,
+          };
 
       // SafeMessage EIP-712 types
       const types = {
@@ -220,7 +221,8 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
         case "eth_signTypedData_v4": {
           // signTypedData params: [address, typedData]
           const typedDataString = signParams[1];
-          messageToSign = typeof typedDataString === "string" ? JSON.parse(typedDataString) : (typedDataString as object);
+          messageToSign =
+            typeof typedDataString === "string" ? JSON.parse(typedDataString) : (typedDataString as object);
           break;
         }
 
@@ -455,9 +457,11 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
     );
   }
 
-  const dappMetadata = (currentRequest as unknown as {
-    params?: { proposer?: { metadata?: { icons?: string[]; name?: string; url?: string; description?: string } } };
-  })?.params?.proposer?.metadata;
+  const dappMetadata = (
+    currentRequest as unknown as {
+      params?: { proposer?: { metadata?: { icons?: string[]; name?: string; url?: string; description?: string } } };
+    }
+  )?.params?.proposer?.metadata;
 
   // Format the message for display
   let messageToDisplay = "";
@@ -576,32 +580,12 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
 
           {/* EIP-712 Data Section */}
           {eip712Data && (
-            <div className="space-y-4">
-              <div className="divider">EIP-712 Signature Data</div>
-
-              <div className="bg-base-200 rounded-box space-y-3 p-4">
-                <div>
-                  <h4 className="mb-1 text-sm font-semibold">SafeMessage</h4>
-                  <p className="font-mono text-xs break-all">{eip712Data.safeMessage}</p>
-                </div>
-                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
-                  <h4 className="mb-1 text-sm font-semibold text-blue-800 dark:text-blue-200">
-                    EIP-712 Digest (SafeMessage Hash)
-                  </h4>
-                  <p className="font-mono text-xs break-all text-blue-800 dark:text-blue-200">
-                    {eip712Data.eip712Hash}
-                  </p>
-                </div>
-                <div>
-                  <h4 className="mb-1 text-sm font-semibold">Domain Hash</h4>
-                  <p className="font-mono text-xs break-all">{eip712Data.domainHash}</p>
-                </div>
-                <div>
-                  <h4 className="mb-1 text-sm font-semibold">Message Hash</h4>
-                  <p className="font-mono text-xs break-all">{eip712Data.messageHash}</p>
-                </div>
-              </div>
-            </div>
+            <EIP712DataDisplay
+              domainHash={eip712Data.domainHash}
+              messageHash={eip712Data.messageHash}
+              eip712Hash={eip712Data.eip712Hash}
+              safeMessage={eip712Data.safeMessage}
+            />
           )}
 
           {/* Signature Collection Progress */}

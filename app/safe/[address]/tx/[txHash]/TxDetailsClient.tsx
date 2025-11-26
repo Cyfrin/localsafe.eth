@@ -2,6 +2,7 @@
 
 import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
+import EIP712DataDisplay from "@/app/components/EIP712DataDisplay";
 import { useNavigate, Link } from "react-router-dom";
 import useSafe from "@/app/hooks/useSafe";
 import { useEffect, useState } from "react";
@@ -561,9 +562,8 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
 
               {/* EIP-712 Data Section */}
               {eip712Data && safeTx && chain && (
-                <div className="mt-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="divider">EIP-712 Signature Data</div>
+                <div className="mt-4">
+                  <div className="mb-4 flex items-center justify-end">
                     <a
                       href={`https://tools.cyfrin.io/safe-hash?safeAddress=${encodeURIComponent(safeAddress)}&chainId=${encodeURIComponent(getChainNameForCyfrin(chain.id))}&safeVersion=${encodeURIComponent(safeInfo?.version || "1.4.1")}&nonce=${encodeURIComponent(safeTx.data.nonce)}&to=${encodeURIComponent(safeTx.data.to)}&value=${encodeURIComponent(safeTx.data.value)}&data=${encodeURIComponent(safeTx.data.data)}&operation=${encodeURIComponent(safeTx.data.operation)}&safeTxGas=${encodeURIComponent(safeTx.data.safeTxGas)}&baseGas=${encodeURIComponent(safeTx.data.baseGas)}&gasPrice=${encodeURIComponent(safeTx.data.gasPrice)}&gasToken=${encodeURIComponent(safeTx.data.gasToken)}&refundReceiver=${encodeURIComponent(safeTx.data.refundReceiver)}`}
                       target="_blank"
@@ -573,25 +573,11 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
                       🔐 Verify EIP-712 Hash
                     </a>
                   </div>
-
-                  <div className="bg-base-200 rounded-box space-y-3 p-4">
-                    <div>
-                      <h4 className="mb-1 text-sm font-semibold">Domain Hash</h4>
-                      <p className="font-mono text-xs break-all">{eip712Data.domainHash}</p>
-                    </div>
-                    <div>
-                      <h4 className="mb-1 text-sm font-semibold">Message Hash</h4>
-                      <p className="font-mono text-xs break-all">{eip712Data.messageHash}</p>
-                    </div>
-                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
-                      <h4 className="mb-1 text-sm font-semibold text-blue-800 dark:text-blue-200">
-                        EIP-712 Digest (Signing Hash)
-                      </h4>
-                      <p className="font-mono text-xs break-all text-blue-800 dark:text-blue-200">
-                        {eip712Data.eip712Hash}
-                      </p>
-                    </div>
-                  </div>
+                  <EIP712DataDisplay
+                    domainHash={eip712Data.domainHash}
+                    messageHash={eip712Data.messageHash}
+                    eip712Hash={eip712Data.eip712Hash}
+                  />
                 </div>
               )}
 
@@ -695,7 +681,9 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
                               className="flex flex-col items-start py-3"
                             >
                               <span className="font-semibold">Execute Transaction</span>
-                              <span className="text-xs opacity-70">Execute immediately (you&apos;re the last signer)</span>
+                              <span className="text-xs opacity-70">
+                                Execute immediately (you&apos;re the last signer)
+                              </span>
                             </button>
                           </li>
                         </ul>
