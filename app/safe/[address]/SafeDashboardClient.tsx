@@ -64,6 +64,8 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
   const [showImportModal, setShowImportModal] = useState(false);
   const [importPreview, setImportPreview] = useState<ImportTxPreview | { error: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const processedImportRef = useRef<string | null>(null);
+  const [refreshCounter, setRefreshCounter] = useState(0);
 
   // Handle shared transaction or signature links
   useEffect(() => {
@@ -75,6 +77,14 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
       const importMsgParam = searchParams.get("importMsg");
       const importMsgSigParam = searchParams.get("importMsgSig");
       const urlChainId = searchParams.get("chainId");
+
+      // Create a unique key for this import to prevent duplicate processing
+      const importKey = importTxParam || importSigParam || importMsgParam || importMsgSigParam;
+      if (!importKey) return;
+
+      // Skip if we've already processed this import
+      if (processedImportRef.current === importKey) return;
+      processedImportRef.current = importKey;
 
       if (importTxParam) {
         try {
@@ -93,6 +103,8 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
             toast.success(
               `Transaction imported successfully!${urlChainId && chain?.id && String(chain.id) !== urlChainId ? ` (Chain ID: ${urlChainId})` : ""}`,
             );
+            // Trigger refresh of transaction list
+            setRefreshCounter((c) => c + 1);
           }
         } catch (e) {
           console.error("Failed to import transaction from URL:", e);
@@ -135,6 +147,8 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
               window.history.replaceState({}, "", newUrl);
               // Show success message
               toast.success("Signature added successfully!");
+              // Trigger refresh of transaction list
+              setRefreshCounter((c) => c + 1);
             } else {
               toast.error("Transaction not found. Please import the full transaction first.");
             }
@@ -174,6 +188,8 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
             toast.success(
               `Message imported successfully!${urlChainId && chain?.id && String(chain.id) !== urlChainId ? ` (Chain ID: ${urlChainId})` : ""}`,
             );
+            // Trigger refresh of message list
+            setRefreshCounter((c) => c + 1);
           }
         } catch (e) {
           console.error("Failed to import message from URL:", e);
@@ -215,6 +231,8 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
               window.history.replaceState({}, "", newUrl);
               // Show success message
               toast.success("Signature added successfully!");
+              // Trigger refresh of message list
+              setRefreshCounter((c) => c + 1);
             } else {
               toast.error("Message not found. Please import the full message first.");
             }
@@ -277,7 +295,7 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
     return () => {
       cancelled = true;
     };
-  }, [getAllTransactions, kit, isLoading, safeAddress, chain]);
+  }, [getAllTransactions, kit, isLoading, safeAddress, chain, refreshCounter]);
 
   // Fetch all messages if any
   useEffect(() => {
@@ -316,7 +334,7 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
     return () => {
       cancelled = true;
     };
-  }, [getAllMessages, kit, isLoading, safeAddress, chain]);
+  }, [getAllMessages, kit, isLoading, safeAddress, chain, refreshCounter]);
 
   // Handler for deploying undeployed Safe
   async function handleDeployUndeployedSafe() {
