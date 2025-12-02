@@ -1,0 +1,79 @@
+name: Build and Deploy to ArNS
+
+on:
+  release:
+    types: [published]
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build static site
+        run: pnpm run build
+        env:
+          NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: ${{ secrets.WALLETCONNECT_PROJECT_ID }}
+
+      - name: Get version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION=$(gh release view --json tagName -q .tagName)
+            if [[ -z "$VERSION" ]]; then
+              echo "::error::No GitHub release found. Cannot determine version."
+              exit 1
+            fi
+          fi
+          VERSION_UNDERNAME=$(echo "$VERSION" | sed 's/\./-/g')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "undername=$VERSION_UNDERNAME" >> $GITHUB_OUTPUT
+          echo "Deploying version: $VERSION (undername: $VERSION_UNDERNAME)"
+
+      - name: Deploy to version undername
+        run: |
+          npx permaweb-deploy \
+            --arns-name ${{ secrets.ARNS_NAME }} \
+            --undername ${{ steps.version.outputs.undername }} \
+            --deploy-folder ./out \
+            --sig-type ethereum
+        env:
+          DEPLOY_KEY: ${{ secrets.ARNS_DEPLOY_KEY }}
+
+      - name: Deploy to root ArNS name
+        run: |
+          npx permaweb-deploy \
+            --arns-name ${{ secrets.ARNS_NAME }} \
+            --undername @ \
+            --deploy-folder ./out \
+            --sig-type ethereum
+        env:
+          DEPLOY_KEY: ${{ secrets.ARNS_DEPLOY_KEY }}
+
+      - name: Output ArNS URLs
+        run: |
+          echo "::notice title=ArNS Deployment::Successfully deployed to ArNS!"
+          echo "::notice title=Version URL::https://${{ steps.version.outputs.undername }}_${{ secrets.ARNS_NAME }}.arweave.net"
+          echo "::notice title=Latest URL::https://${{ secrets.ARNS_NAME }}.arweave.net"
