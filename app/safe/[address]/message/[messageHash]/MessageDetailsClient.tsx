@@ -400,11 +400,11 @@ export default function MessageDetailsClient({
                   <h4 className="mb-1 text-sm font-semibold">SafeMessage</h4>
                   <p className="font-mono text-xs break-all">{eip712Data.safeMessage}</p>
                 </div>
-                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
-                  <h4 className="mb-1 text-sm font-semibold text-blue-800 dark:text-blue-200">
+                <div className="rounded-lg border border-info/30 bg-info/10 p-3">
+                  <h4 className="mb-1 text-sm font-semibold">
                     EIP-712 Digest (SafeMessage Hash)
                   </h4>
-                  <p className="font-mono text-xs break-all text-blue-800 dark:text-blue-200">
+                  <p className="font-mono text-xs break-all">
                     {eip712Data.eip712Hash}
                   </p>
                 </div>
