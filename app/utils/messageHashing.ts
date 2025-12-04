@@ -209,15 +209,15 @@ export function calculateSafeTxHashes(
   chainId: number,
   safeTx: {
     to: string;
-    value: bigint | string;
+    value: bigint | string | number;
     data: string;
     operation: number;
-    safeTxGas: bigint | string;
-    baseGas: bigint | string;
-    gasPrice: bigint | string;
+    safeTxGas: bigint | string | number;
+    baseGas: bigint | string | number;
+    gasPrice: bigint | string | number;
     gasToken: string;
     refundReceiver: string;
-    nonce: bigint | string;
+    nonce: bigint | string | number;
   },
 ): EIP712HashResult {
   const domain = {

@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { EthSafeMessage } from "@safe-global/protocol-kit";
 import { useSafeMessageContext } from "@/app/provider/SafeMessageProvider";
 import { useAccount, useChainId } from "wagmi";
+import { ethers } from "ethers";
 import { useToast } from "@/app/hooks/useToast";
 import { useWalletConnect } from "@/app/provider/WalletConnectProvider";
 import { calculateSafeMessageHashesFromData } from "@/app/utils/messageHashing";
