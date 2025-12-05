@@ -7,10 +7,23 @@ import { AbiFunctionItem } from "./types";
 export type EncodeCalldataResult = { success: true; data: string } | { success: false; error: string };
 
 /**
+ * Helper to generate a function signature string
+ * Format: functionName(paramType1,paramType2,...) or functionName() for no params
+ *
+ * @param item ABI function item
+ * @returns Function signature string
+ */
+function getFunctionSignature(item: AbiFunctionItem): string {
+  if (item.type !== "function") return item.name;
+  const paramTypes = item.inputs?.map((input) => input.type).join(", ") || "";
+  return `${item.name}(${paramTypes})`;
+}
+
+/**
  * Encodes function call data from ABI and input values
  *
  * @param abiJson - ABI JSON string
- * @param methodName - Function name to encode
+ * @param methodSignature - Function signature to encode (e.g., "transfer(address, uint256)" or "mint()")
  * @param inputValues - Input values mapped by parameter name
  * @returns Encoded calldata or error message
  *
@@ -18,7 +31,7 @@ export type EncodeCalldataResult = { success: true; data: string } | { success: 
  * ```ts
  * const result = encodeCalldataFromAbi(
  *   '[{"type":"function","name":"transfer","inputs":[{"name":"to","type":"address"},{"name":"amount","type":"uint256"}]}]',
- *   'transfer',
+ *   'transfer(address, uint256)',
  *   { to: '0x123...', amount: '1000' }
  * );
  * if (result.success) {
@@ -28,18 +41,18 @@ export type EncodeCalldataResult = { success: true; data: string } | { success: 
  */
 export function encodeCalldataFromAbi(
   abiJson: string,
-  methodName: string,
+  methodSignature: string,
   inputValues: Record<string, string>,
 ): EncodeCalldataResult {
   try {
     // Parse ABI
     const abi: AbiFunctionItem[] = JSON.parse(abiJson);
 
-    // Find the method in ABI
-    const method = abi.find((item) => item.type === "function" && item.name === methodName);
+    // Find the method in ABI by signature (handles function overrides)
+    const method = abi.find((item) => item.type === "function" && getFunctionSignature(item) === methodSignature);
 
     if (!method || !method.inputs) {
-      return { success: false, error: `Method "${methodName}" not found in ABI` };
+      return { success: false, error: `Method "${methodSignature}" not found in ABI` };
     }
 
     // Build args array in the correct order matching ABI inputs
