@@ -16,24 +16,38 @@ import { encodeCalldataFromAbi } from "@/app/utils/abiEncoder";
 import { useToast } from "@/app/hooks/useToast";
 
 /**
- * Helper to extract function names from ABI
+ * Helper to generate a function signature string
+ * Format: functionName(paramType1, paramType2, ...) or functionName() for no params
  *
- * @param abi ABI array
- * @returns
+ * @param item ABI function item
+ * @returns Function signature string
  */
-function getAbiMethods(abi: AbiFunctionItem[]): string[] {
-  return abi.filter((item) => item.type === "function").map((item) => item.name);
+function getFunctionSignature(item: AbiFunctionItem): string {
+  if (item.type !== "function") return item.name;
+  const paramTypes = item.inputs?.map((input) => input.type).join(", ") || "";
+  return `${item.name}(${paramTypes})`;
 }
 
 /**
- * Helper to get inputs of a specific method from ABI
+ * Helper to extract function signatures from ABI
+ * Returns unique signatures including parameter types to handle function overrides
  *
  * @param abi ABI array
- * @param methodName Method name
+ * @returns Array of function signatures
+ */
+function getAbiMethods(abi: AbiFunctionItem[]): string[] {
+  return abi.filter((item) => item.type === "function").map(getFunctionSignature);
+}
+
+/**
+ * Helper to get inputs of a specific method from ABI by signature
+ *
+ * @param abi ABI array
+ * @param methodSignature Function signature (e.g., "mint()" or "mint(address)")
  * @returns Input definitions
  */
-function getAbiMethodInputs(abi: AbiFunctionItem[], methodName: string): { name: string; type: string }[] {
-  const method = abi.find((item) => item.type === "function" && item.name === methodName);
+function getAbiMethodInputs(abi: AbiFunctionItem[], methodSignature: string): { name: string; type: string }[] {
+  const method = abi.find((item) => item.type === "function" && getFunctionSignature(item) === methodSignature);
   return method?.inputs ?? [];
 }
 
@@ -42,15 +56,15 @@ function getAbiMethodInputs(abi: AbiFunctionItem[], methodName: string): { name:
  */
 function handleAbiMethodSelect(
   abiJson: string,
-  methodName: string,
+  methodSignature: string,
   setSelectedMethod: (name: string) => void,
   setMethodInputs: (inputs: { name: string; type: string }[]) => void,
   setInputValues: (vals: Record<string, string>) => void,
 ) {
-  setSelectedMethod(methodName);
+  setSelectedMethod(methodSignature);
   try {
     const abi = JSON.parse(abiJson);
-    setMethodInputs(getAbiMethodInputs(abi, methodName));
+    setMethodInputs(getAbiMethodInputs(abi, methodSignature));
     setInputValues({});
   } catch {
     setMethodInputs([]);
@@ -58,10 +72,10 @@ function handleAbiMethodSelect(
 }
 
 /**
- * Helper to parse ABI JSON and extract method names
+ * Helper to parse ABI JSON and extract method signatures
  *
  * @param json ABI JSON string
- * @returns Method names array
+ * @returns Method signatures array (e.g., ["mint()", "mint(address)"])
  */
 function parseAbiMethodsFromJson(json: string): string[] {
   try {
