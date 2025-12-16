@@ -1,0 +1,37 @@
+version: 2
+updates:
+  # NPM dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "05:00"
+      timezone: "Europe/Zurich"
+    # Prevent major version updates
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    # Group all updates into a single PR
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
+    # Limit open PRs
+    open-pull-requests-limit: 10
+    # Rebase strategy for cleaner history
+    rebase-strategy: "auto"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      time: "05:00"
+      timezone: "Europe/Zurich"
+    # Group all action updates together
+    groups:
+      all-actions:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 10
+    rebase-strategy: "auto"
