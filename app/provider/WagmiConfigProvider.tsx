@@ -38,6 +38,7 @@ import {
   baseSepolia,
   zkSync,
   zora,
+  story,
 } from "wagmi/chains";
 import ethereumIcon from "../assets/chainIcons/ethereum.svg";
 import arbitrumIcon from "../assets/chainIcons/arbitrum.svg";
@@ -53,6 +54,7 @@ import bscIcon from "../assets/chainIcons/bsc.svg";
 import avalancheIcon from "../assets/chainIcons/avalanche.svg";
 import celoIcon from "../assets/chainIcons/celo.svg";
 import mantleIcon from "../assets/chainIcons/mantle.svg";
+import storyIcon from "../assets/chainIcons/story.svg";
 import hardhatIcon from "../assets/chainIcons/hardhat.svg";
 
 // Helper to add icon URLs to chains
@@ -79,6 +81,7 @@ const DEFAULT_CHAINS: Chain[] = [
   addChainIcon(avalanche, avalancheIcon.src),
   addChainIcon(celo, celoIcon.src),
   addChainIcon(mantle, mantleIcon.src),
+  addChainIcon(story, storyIcon.src),
   addChainIcon(sepolia, ethereumIcon.src), // Uses ethereum icon
   addChainIcon(baseSepolia, baseIcon.src), // Uses base icon
   addChainIcon(anvil, hardhatIcon.src), // Uses hardhat icon for local dev
