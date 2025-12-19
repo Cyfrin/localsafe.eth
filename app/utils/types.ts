@@ -131,6 +131,7 @@ export type AbiFunctionItem = {
   type: string;
   name: string;
   inputs?: { name: string; type: string }[];
+  stateMutability?: "pure" | "view" | "nonpayable" | "payable";
 };
 
 // Preview type for import

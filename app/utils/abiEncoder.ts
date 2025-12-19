@@ -13,9 +13,9 @@ export type EncodeCalldataResult = { success: true; data: string } | { success: 
  * @param item ABI function item
  * @returns Function signature string
  */
-function getFunctionSignature(item: AbiFunctionItem): string {
+export function getFunctionSignature(item: AbiFunctionItem): string {
   if (item.type !== "function") return item.name;
-  const paramTypes = item.inputs?.map((input) => input.type).join(", ") || "";
+  const paramTypes = item.inputs?.map((input) => input.type).join(",") || "";
   return `${item.name}(${paramTypes})`;
 }
 
@@ -51,13 +51,14 @@ export function encodeCalldataFromAbi(
     // Find the method in ABI by signature (handles function overrides)
     const method = abi.find((item) => item.type === "function" && getFunctionSignature(item) === methodSignature);
 
-    if (!method || !method.inputs) {
+    if (!method) {
       return { success: false, error: `Method "${methodSignature}" not found in ABI` };
     }
 
     // Build args array in the correct order matching ABI inputs
+    const inputs = method.inputs ?? [];
     const args: unknown[] = [];
-    for (const input of method.inputs) {
+    for (const input of inputs) {
       const value = inputValues[input.name];
 
       // Check for missing required values
