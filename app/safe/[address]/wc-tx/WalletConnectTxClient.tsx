@@ -141,6 +141,72 @@ export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0
     }
   };
 
+  /**
+   * Handle creating the transaction but delay WalletConnect response until execution.
+   * This stores the WC request info so we can respond with the real on-chain tx hash after execution.
+   */
+  const handleApproveAndWait = async () => {
+    if (!currentRequest || !txParams) return;
+
+    setIsProcessing(true);
+    try {
+      // Parse custom nonce if provided
+      const nonce = customNonce ? parseInt(customNonce, 10) : undefined;
+      if (customNonce && (isNaN(nonce!) || nonce! < 0)) {
+        alert("Invalid nonce value");
+        setIsProcessing(false);
+        return;
+      }
+
+      // Build the Safe transaction
+      const safeTx = await buildSafeTransaction(
+        [
+          {
+            to: txParams.to,
+            value: txParams.value || "0",
+            data: txParams.data || "0x",
+            operation: 0,
+          },
+        ],
+        nonce,
+      );
+
+      if (!safeTx) {
+        throw new Error("Failed to build Safe transaction");
+      }
+
+      // Get the Safe transaction hash
+      const safeTxHash = await kit?.getTransactionHash(safeTx);
+
+      if (!safeTxHash) {
+        throw new Error("Failed to get Safe transaction hash");
+      }
+
+      // Store WalletConnect request info for later response (after execution)
+      // We don't respond to WC now - we'll respond with the real tx hash after execution
+      if (typeof window !== "undefined") {
+        const wcRequestInfo = {
+          topic: currentRequest.topic,
+          id: currentRequest.id,
+          safeTxHash,
+          timestamp: Date.now(),
+        };
+        sessionStorage.setItem(`wc-pending-response-${safeTxHash}`, JSON.stringify(wcRequestInfo));
+        sessionStorage.removeItem("wc-pending-request");
+      }
+
+      // Clear pending request from context (but don't respond to WC yet)
+      clearPendingRequest();
+
+      // Navigate to the transaction signing page
+      navigate(`/safe/${safeAddress}/tx/${safeTxHash}`);
+    } catch (error) {
+      console.error("Failed to create transaction:", error);
+      alert(`Failed to create transaction: ${error instanceof Error ? error.message : String(error)}`);
+      setIsProcessing(false);
+    }
+  };
+
   const handleReject = async () => {
     if (!currentRequest) return;
 
@@ -330,51 +396,52 @@ export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0
           {/* Action Buttons */}
           <div className="mt-4 flex gap-2">
             <button
-              className="btn btn-error btn-outline flex-1"
+              className="btn btn-error btn-outline"
               onClick={handleReject}
               disabled={isProcessing}
               data-testid="wc-tx-reject-btn"
             >
               {isProcessing ? <span className="loading loading-spinner loading-sm"></span> : "Reject"}
             </button>
-            <button
-              className="btn btn-success flex-1"
-              onClick={handleApprove}
-              disabled={isProcessing}
-              data-testid="wc-tx-approve-btn"
+            <div
+              className="tooltip tooltip-top flex-1"
+              data-tip="Responds immediately with Safe tx hash. Use for dApps that don't need to track your exact on-chain transaction."
             >
-              {isProcessing ? (
-                <div className="flex items-center gap-2">
-                  <span className="loading loading-spinner loading-sm"></span>
-                  <span>Creating Transaction...</span>
-                </div>
-              ) : (
-                "Create Safe Transaction"
-              )}
-            </button>
-          </div>
-
-          <div className="alert alert-warning">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6 shrink-0 stroke-current"
-              fill="none"
-              viewBox="0 0 24 24"
+              <button
+                className="btn btn-success w-full"
+                onClick={handleApprove}
+                disabled={isProcessing}
+                data-testid="wc-tx-approve-btn"
+              >
+                {isProcessing ? (
+                  <div className="flex items-center gap-2">
+                    <span className="loading loading-spinner loading-sm"></span>
+                    <span>Creating...</span>
+                  </div>
+                ) : (
+                  "Create (Quick Response)"
+                )}
+              </button>
+            </div>
+            <div
+              className="tooltip tooltip-top flex-1"
+              data-tip="Waits until you execute, then sends the real on-chain tx hash. Use for ENS, Uniswap, or dApps that track your transaction."
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
-            <div className="flex flex-col">
-              <span className="font-semibold">Safe Wallet Workflow</span>
-              <span className="text-sm">
-                Clicking &quot;Create Safe Transaction&quot; will build a multi-sig transaction that requires signing
-                and broadcasting. The dApp request will be rejected since Safe transactions cannot provide an immediate
-                transaction hash.
-              </span>
+              <button
+                className="btn btn-success w-full"
+                onClick={handleApproveAndWait}
+                disabled={isProcessing}
+                data-testid="wc-tx-approve-wait-btn"
+              >
+                {isProcessing ? (
+                  <div className="flex items-center gap-2">
+                    <span className="loading loading-spinner loading-sm"></span>
+                    <span>Creating...</span>
+                  </div>
+                ) : (
+                  "Create (And wait for execution)"
+                )}
+              </button>
             </div>
           </div>
         </div>

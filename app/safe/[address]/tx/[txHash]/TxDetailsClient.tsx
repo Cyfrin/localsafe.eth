@@ -13,6 +13,7 @@ import { BroadcastModal } from "@/app/components/BroadcastModal";
 import { useAccount } from "wagmi";
 import { useToast } from "@/app/hooks/useToast";
 import { calculateSafeTxHashes } from "@/app/utils/messageHashing";
+import { useWalletConnect } from "@/app/provider/WalletConnectProvider";
 
 /**
  * Maps chain IDs to chain names expected by Cyfrin tools
@@ -56,6 +57,7 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
   const { signSafeTransaction, broadcastSafeTransaction, isOwner, safeInfo, kit } = useSafe(safeAddress);
   const { removeTransaction, getAllTransactions, saveTransaction } = useSafeTxContext();
   const toast = useToast();
+  const { approveRequest } = useWalletConnect();
 
   // State
   const [showModal, setShowModal] = useState(false);
@@ -73,6 +75,27 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
     messageHash: string;
     eip712Hash: string;
   } | null>(null);
+  const [pendingWcRequest, setPendingWcRequest] = useState<{
+    topic: string;
+    id: number;
+    safeTxHash: string;
+    timestamp: number;
+  } | null>(null);
+
+  // Check for pending WalletConnect request that needs response after execution
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = sessionStorage.getItem(`wc-pending-response-${txHash}`);
+      if (stored) {
+        try {
+          const wcRequest = JSON.parse(stored);
+          setPendingWcRequest(wcRequest);
+        } catch (e) {
+          console.error("Failed to parse WC request:", e);
+        }
+      }
+    }
+  }, [txHash]);
 
   // Check if current user has signed this specific transaction
   const hasSignedThisTx =
@@ -233,6 +256,24 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
       // Remove the transaction from the pending list after successful broadcast
       if (chain?.id) {
         removeTransaction(safeAddress, undefined, Number(safeTx.data.nonce), String(chain.id));
+      }
+
+      // If there's a pending WalletConnect request, respond with the real tx hash
+      if (pendingWcRequest && txHash) {
+        try {
+          await approveRequest(pendingWcRequest.topic, {
+            id: pendingWcRequest.id,
+            jsonrpc: "2.0",
+            result: txHash,
+          });
+          // Clear the pending request from sessionStorage
+          sessionStorage.removeItem(`wc-pending-response-${pendingWcRequest.safeTxHash}`);
+          setPendingWcRequest(null);
+          toast.success("WalletConnect: Sent real tx hash to dApp!");
+        } catch (wcErr) {
+          console.error("Failed to respond to WalletConnect:", wcErr);
+          toast.error("Failed to send WalletConnect response");
+        }
       }
     } catch (err) {
       setBroadcastError(err instanceof Error ? err.message : String(err));
@@ -553,6 +594,29 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
                     messageHash={eip712Data.messageHash}
                     eip712Hash={eip712Data.eip712Hash}
                   />
+                </div>
+              )}
+
+              {/* WalletConnect Pending Alert */}
+              {pendingWcRequest && (
+                <div className="alert alert-warning">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6 shrink-0 stroke-current"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                  <div className="text-sm">
+                    <p className="font-semibold">WalletConnect Request Pending</p>
+                    <p>A dApp is waiting for the real transaction hash. Execute this transaction to send the response.</p>
+                  </div>
                 </div>
               )}
 
