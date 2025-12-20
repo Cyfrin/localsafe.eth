@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { useSafeWalletContext } from "@/app/provider/SafeWalletProvider";
 import useNewSafe from "@/app/hooks/useNewSafe";
 import { getRandomSafeName, sanitizeUserInput } from "@/app/utils/helpers";
+import { useEnsAddress } from "@/app/hooks/useEnsAddress";
 
 /**
  * Connect Safe Client Component
@@ -31,11 +32,15 @@ export default function ConnectSafeClient() {
   // State for name, address, chain, error, loading
   const [safeName, setSafeName] = useState<string>("");
   const [randomName] = useState(() => getRandomSafeName());
-  const [safeAddress, setSafeAddress] = useState<`0x${string}`>("" as `0x${string}`);
+  const [addressInput, setAddressInput] = useState<string>("");
   const [selectedChain, setSelectedChain] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [networkModalOpen, setNetworkModalOpen] = useState(false);
+
+  // ENS resolution
+  const { address: resolvedAddress, isLoading: isResolvingEns, isEnsName } = useEnsAddress(addressInput);
+  const safeAddress = (isEnsName ? resolvedAddress : addressInput) as `0x${string}`;
 
   /**
    * Handle adding an existing safe to the wallet.
@@ -47,8 +52,20 @@ export default function ConnectSafeClient() {
   async function handleAddSafe() {
     setLoading(true);
     setError(null);
+    // Check if still resolving ENS
+    if (isResolvingEns) {
+      setError("Still resolving ENS name...");
+      setLoading(false);
+      return;
+    }
+    // Check if ENS name didn't resolve
+    if (isEnsName && !resolvedAddress) {
+      setError("Could not resolve ENS name to an address");
+      setLoading(false);
+      return;
+    }
     // Validate address
-    if (!/^0x[a-fA-F0-9]{40}$/.test(safeAddress)) {
+    if (!safeAddress || !/^0x[a-fA-F0-9]{40}$/.test(safeAddress)) {
       setError("Invalid Safe address");
       setLoading(false);
       return;
@@ -122,18 +139,33 @@ export default function ConnectSafeClient() {
           </label>
         </fieldset>
         <fieldset className="fieldset w-full">
-          <legend className="fieldset-legend">Safe Address</legend>
+          <legend className="fieldset-legend">Safe Address or ENS Name</legend>
           <input
             type="text"
             className="input validator flex-1 font-mono"
-            placeholder="0x..."
-            value={safeAddress}
-            onChange={(e) => setSafeAddress(e.target.value as `0x${string}`)}
-            pattern="^0x[a-fA-F0-9]{40}$"
+            placeholder="0x... or name.eth"
+            value={addressInput}
+            onChange={(e) => setAddressInput(e.target.value.trim())}
             required
             disabled={loading}
             data-testid="safe-address-input"
           />
+          {isEnsName && (
+            <label className="label">
+              {isResolvingEns ? (
+                <span className="label-text-alt flex items-center gap-2">
+                  <span className="loading loading-spinner loading-xs"></span>
+                  Resolving ENS name...
+                </span>
+              ) : resolvedAddress ? (
+                <span className="label-text-alt text-success">
+                  Resolved: {resolvedAddress.slice(0, 6)}...{resolvedAddress.slice(-4)}
+                </span>
+              ) : (
+                <span className="label-text-alt text-error">Could not resolve ENS name</span>
+              )}
+            </label>
+          )}
         </fieldset>
         <div className="mb-4">
           <label className="mb-2 block font-semibold">Select Network</label>

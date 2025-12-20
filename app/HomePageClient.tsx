@@ -5,7 +5,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Link } from "react-router-dom";
 import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
-import { useEnsAddress } from "@/app/hooks/useEnsAddress";
+import { useEnsName } from "@/app/hooks/useEnsName";
 
 /**
  * HomePageClient component that displays a welcome message and a connect button.
@@ -14,7 +14,7 @@ import { useEnsAddress } from "@/app/hooks/useEnsAddress";
  */
 export default function HomePageClient() {
   const { isConnected, address } = useAccount();
-  const ensName = useEnsAddress(address);
+  const ensName = useEnsName(address);
   const displayAddress = ensName || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "");
 
   return (
