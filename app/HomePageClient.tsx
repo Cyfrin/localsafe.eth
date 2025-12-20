@@ -5,6 +5,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Link } from "react-router-dom";
 import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
+import { useEnsAddress } from "@/app/hooks/useEnsAddress";
 
 /**
  * HomePageClient component that displays a welcome message and a connect button.
@@ -13,6 +14,8 @@ import AppCard from "@/app/components/AppCard";
  */
 export default function HomePageClient() {
   const { isConnected, address } = useAccount();
+  const ensName = useEnsAddress(address);
+  const displayAddress = ensName || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "");
 
   return (
     <AppSection className="max-w-2xl self-center">
@@ -28,7 +31,7 @@ export default function HomePageClient() {
               className="btn btn-primary btn-soft text-md w-full rounded py-4 sm:text-lg"
               data-testid="continue-with-account"
             >
-              Continue with {address?.slice(0, 6) + "..." + address?.slice(-4)}
+              Continue with {displayAddress}
             </Link>
           ) : (
             <ConnectButton chainStatus={"none"} showBalance={false} />

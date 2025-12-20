@@ -1,4 +1,5 @@
 import React from "react";
+import { useEnsAddress } from "@/app/hooks/useEnsAddress";
 
 interface AppAddressProps {
   address: string;
@@ -7,14 +8,17 @@ interface AppAddressProps {
 }
 
 /**
- * Component to display a blockchain address.
+ * Component to display a blockchain address with ENS support.
  *
  * @param {string} address - The blockchain address to display.
  * @param {string} [className] - Optional additional CSS classes for styling.
  * @param {string} [testid] - Optional test ID for testing purposes.
- * @returns A styled span element containing the blockchain address.
+ * @returns A styled span element containing the blockchain address or ENS name.
  */
 export default function AppAddress({ address, className, testid }: AppAddressProps) {
+  const ensName = useEnsAddress(address);
+  const displayAddress = ensName || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "");
+
   return (
     <span
       className={
@@ -23,7 +27,7 @@ export default function AppAddress({ address, className, testid }: AppAddressPro
       }
       data-testid={testid || "app-address"}
     >
-      {address}
+      {displayAddress}
     </span>
   );
 }
