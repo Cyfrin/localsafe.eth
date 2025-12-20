@@ -61,8 +61,9 @@ export default function SafeDetails({ safeName, selectedNetworks, signers, thres
           <div className="flex flex-col gap-2" data-testid="safe-details-signers">
             {signers.map((address, idx) =>
               address ? (
-                <div key={idx} className="flex flex-wrap rounded" data-testid={`safe-details-signer-${idx}`}>
-                  <AppAddress address={`${idx + 1}. ${address}`} className="text-sm" />
+                <div key={idx} className="flex flex-wrap items-center gap-1 rounded" data-testid={`safe-details-signer-${idx}`}>
+                  <span className="text-sm font-medium">{idx + 1}.</span>
+                  <AppAddress address={address} className="text-sm" />
                 </div>
               ) : null,
             )}
