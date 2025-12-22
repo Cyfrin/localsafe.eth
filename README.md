@@ -137,7 +137,7 @@ The deployment workflow will:
 
 ### Anvil State Management: --dump-state & --load-state
 
-To ensure deterministic E2E tests, we use Anvil’s state management:
+To ensure deterministic E2E tests, we use Anvil's state management:
 
 - After setting up contracts and accounts, run:
   ```sh
@@ -154,6 +154,8 @@ To ensure deterministic E2E tests, we use Anvil’s state management:
   "anvil": "anvil --load-state ./anvil-safe-state.json --block-time 1",
   "test:e2e": "bash tests/scripts/start-anvil-and-test.sh"
   ```
+
+> **Warning:** Anvil state files may not be compatible across different Foundry versions. If `--load-state` fails with your current Anvil version, you'll need to regenerate the state file by deploying the Safe contracts fresh (see [Deploying Safe Contracts Locally](#deploying-safe-contracts-locally-with-safe-smart-account)).
 <!-- 
 ### Example: Test Runner Script
 
@@ -249,13 +251,13 @@ To run your own local Safe contracts for development, follow these steps:
    ```
 6. **Deploy Contracts**
    ```sh
-   npx hardhat --network custom deploy
+   npm run deploy-all custom
    ```
 7. **Update Contract Addresses**
-   - After deployment, copy the contract addresses from the output and update them in your project’s `localContractNetworks.ts` file.
+   - After deployment, copy the contract addresses from the output and update them in your project’s `utils/contractNetworks.ts` file.
 
 > **Note:**
-> Currently, contract addresses are manually maintained in `localContractNetworks.ts`. In the future, we may automate this process or use environment variables for better flexibility.
+> Currently, contract addresses are manually maintained in `utils/contractNetworks.ts`. In the future, we may automate this process or use environment variables for better flexibility.
 
 ## TODO
 
