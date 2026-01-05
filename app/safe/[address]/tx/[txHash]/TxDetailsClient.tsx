@@ -143,6 +143,12 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
    * Fetch the specific transaction by hash
    */
   useEffect(() => {
+    // Don't re-fetch if we've already broadcast successfully - the tx has been removed from storage
+    if (broadcastHash) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     let cancelled = false;
     async function fetchTx() {
@@ -175,7 +181,7 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
     return () => {
       cancelled = true;
     };
-  }, [kit, chain, txHash, safeAddress, getAllTransactions, toast]);
+  }, [kit, chain, txHash, safeAddress, getAllTransactions, toast, broadcastHash]);
 
   /**
    * Calculate EIP-712 hashes when transaction is loaded
@@ -615,7 +621,9 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
                   </svg>
                   <div className="text-sm">
                     <p className="font-semibold">WalletConnect Request Pending</p>
-                    <p>A dApp is waiting for the real transaction hash. Execute this transaction to send the response.</p>
+                    <p>
+                      A dApp is waiting for the real transaction hash. Execute this transaction to send the response.
+                    </p>
                   </div>
                 </div>
               )}

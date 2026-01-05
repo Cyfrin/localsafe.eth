@@ -19,6 +19,7 @@ import {
   phantomWallet,
 } from "@rainbow-me/rainbowkit/wallets";
 import { createConfig, http } from "wagmi";
+import { e2eConnector } from "@wonderland/walletless";
 import {
   mainnet,
   sepolia,
@@ -64,6 +65,18 @@ const addChainIcon = (chain: Chain, iconUrl: string): Chain =>
     iconUrl,
   }) as Chain;
 
+// Helper to override chain RPC URL if env variable is set
+const withOptionalRpcOverride = (chain: Chain, envRpcUrl: string | undefined): Chain => {
+  if (!envRpcUrl) return chain;
+  return {
+    ...chain,
+    rpcUrls: {
+      ...chain.rpcUrls,
+      default: { http: [envRpcUrl] },
+    },
+  };
+};
+
 // Default chains that should always be available with local SVG icons
 const DEFAULT_CHAINS: Chain[] = [
   addChainIcon(mainnet, ethereumIcon.src),
@@ -82,7 +95,7 @@ const DEFAULT_CHAINS: Chain[] = [
   addChainIcon(celo, celoIcon.src),
   addChainIcon(mantle, mantleIcon.src),
   addChainIcon(story, storyIcon.src),
-  addChainIcon(sepolia, ethereumIcon.src), // Uses ethereum icon
+  addChainIcon(withOptionalRpcOverride(sepolia, process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL), ethereumIcon.src), // Uses ethereum icon
   addChainIcon(baseSepolia, baseIcon.src), // Uses base icon
   addChainIcon(anvil, hardhatIcon.src), // Uses hardhat icon for local dev
 ];
@@ -102,10 +115,13 @@ export const WagmiConfigProvider: React.FC<{
 
   const [chainsLoaded, setChainsLoaded] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [isE2E, setIsE2E] = useState(false);
 
   // Ensure we're on the client side before initializing
   useEffect(() => {
     setIsMounted(true);
+    // Check for E2E mode on mount (set by Playwright's addInitScript before page load)
+    setIsE2E(typeof window !== "undefined" && window.localStorage.getItem("E2E_MODE") === "true");
   }, []);
 
   // Load chains from localStorage on mount
@@ -148,6 +164,22 @@ export const WagmiConfigProvider: React.FC<{
       {} as Record<number, ReturnType<typeof fallback>>,
     );
 
+    // In E2E mode, use the walletless e2eConnector for automated testing
+    if (isE2E) {
+      return createConfig({
+        chains: configChains as [typeof mainnet, ...[typeof mainnet]],
+        connectors: [
+          e2eConnector({
+            rpcUrl: "http://127.0.0.1:8545",
+            chain: anvil,
+            debug: true,
+          }),
+        ],
+        transports,
+        ssr: false,
+      });
+    }
+
     // Configure wallets explicitly to exclude Coinbase Wallet (which phones home)
     const connectors = connectorsForWallets(
       [
@@ -176,7 +208,7 @@ export const WagmiConfigProvider: React.FC<{
       transports,
       ssr: false,
     });
-  }, [configChains, isMounted]);
+  }, [configChains, isMounted, isE2E]);
 
   const [queryClient] = useState(() => new QueryClient());
 

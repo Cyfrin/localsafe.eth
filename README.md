@@ -70,39 +70,39 @@ A 100% local web interface for managing multisignature wallets inspired by SafeW
 
 ### Running E2E Tests
 
-> **Note**: The testing infrastructure is currently in need of refactoring from Synpress. The existing tests may require updates to work with the latest changes.
-<!-- 
+E2E tests use [Playwright](https://playwright.dev/) with [@wonderland/walletless](https://github.com/defi-wonderland/walletless) for wallet automation. This approach eliminates the need for MetaMask browser extension automation, making tests faster and more reliable.
+
 1. Ensure you have [Anvil](https://getfoundry.sh/) installed and updated.
 
-2. You follow the steps above to clone the repo, install dependencies, and create a `.env` file.
-
-3. We need to install Playwright dependencies for E2E tests:
+2. Install Playwright dependencies:
 
 ```bash
-  pnpm exec playwright install --with-deps
+pnpm exec playwright install --with-deps
 ```
 
-4. Execute synpress once to set up its cache:
+3. Run the E2E tests (starts Anvil automatically):
 
 ```bash
-  pnpm run synpress:build # it runs anvil in the background
-  # pnpm exec synpress -- you can can run it by itself too
+pnpm run test:e2e
 ```
 
-_Note: you may need to start anvil in another terminal with `anvil` if you see errors about MetaMask not being able to connect to the network. After completion you can close it._
-
-5. To run the E2E tests in headless mode (default):
+4. For UI mode (useful for debugging):
 
 ```bash
-  pnpm run test:e2e
+pnpm run test:e2e:ui
 ```
 
-_Note: there is a utility command `pnpm run test:clean` to clean up any wild processes (next-server, anvil) that may remain running in the background._
+> **Note:** UI mode requires Anvil to be running in a separate terminal: `pnpm run anvil`
 
-- Tests are written using Synpress (MetaMask automation) and Playwright.
-- Test scripts are located in `tests/` and cover Safe account creation, dashboard, wallet import/export, and transaction workflows.
-- The test runner script (`tests/scripts/start-anvil-and-test.sh`) starts Anvil, runs Synpress, and then Playwright tests.
-- UI-based tests in the devcontainer are a work in progress; headed mode may not display correctly due to Xvfb/browser limitations.But headless tests should work fine. -->
+**How it works:**
+
+- Tests set `E2E_MODE=true` in localStorage, which triggers the app to use the `e2eConnector` from `@wonderland/walletless`
+- The e2eConnector provides a virtual wallet that auto-signs transactions using Anvil's first test account
+- No MetaMask or browser extension is needed - all wallet interactions are handled programmatically
+
+**Utility commands:**
+
+- `pnpm run test:clean` - Kill any stray next-server or anvil processes
 
 ### Run localsafe.eth with Production Build
 
@@ -137,23 +137,30 @@ The deployment workflow will:
 
 ### Anvil State Management: --dump-state & --load-state
 
-To ensure deterministic E2E tests, we use Anvil’s state management:
+To ensure deterministic E2E tests, we use Anvil's state management to save and restore a chain with pre-deployed Safe contracts.
 
-- After setting up contracts and accounts, run:
-  ```sh
-  anvil --dump-state ./anvil-safe-state.json
-  ```
-  This creates a snapshot of the chain state in `anvil-safe-state.json`.
-- For all test runs, start Anvil with:
-  ```sh
-  anvil --load-state ./anvil-safe-state.json --block-time 1
-  ```
-  This restores the chain to the known state for reproducible tests.
-- The test runner script and package.json use this approach:
-  ```json
-  "anvil": "anvil --load-state ./anvil-safe-state.json --block-time 1",
-  "test:e2e": "bash tests/scripts/start-anvil-and-test.sh"
-  ```
+**To create a new state file:**
+
+1. Start Anvil with the `--dump-state` flag (state will be saved when Anvil exits):
+   ```sh
+   anvil --dump-state ./anvil-safe-state.json
+   ```
+2. In another terminal, deploy the Safe contracts (see [Deploying Safe Contracts Locally](#deploying-safe-contracts-locally-with-safe-smart-account))
+3. Stop Anvil (Ctrl+C) to save the state to the JSON file
+
+**To restore the state for testing:**
+
+```sh
+anvil --load-state ./anvil-safe-state.json --block-time 1
+```
+
+The test runner script and package.json use this approach:
+```json
+"anvil": "anvil --load-state ./anvil-safe-state.json --block-time 1",
+"test:e2e": "bash tests/scripts/start-anvil-and-test.sh"
+```
+
+> **Warning:** Anvil state files may not be compatible across different Foundry versions. If `--load-state` fails with your current Anvil version, you'll need to regenerate the state file by deploying the Safe contracts fresh.
 <!-- 
 ### Example: Test Runner Script
 
@@ -215,8 +222,7 @@ expect(exportedJson).toContain("expected data");
 - **Hash-Based Routing**: Uses React Router with hash-based routing (`HashRouter`) to ensure compatibility with static IPFS deployments where server-side routing is not available.
 - **Modular Structure**: The project structure is modular, with reusable components and hooks for maintainability.
 - **WalletConnect Integration**: WalletConnect v2 is integrated for dApp connections and signing requests. Session data is persisted in localStorage.
-<!-- - **E2E Testing**: Tests require manual cache management when switching environments. The testing infrastructure is currently in need of refactoring from Synpress. -->
-<!-- - **Synpress Cache**: Ensure `.cache-synpress` is built for the environment you are using (devcontainer vs local). Refresh the cache by running `pnpm exec synpress --force` if you switch environments. -->
+- **E2E Testing**: Uses Playwright with `@wonderland/walletless` for headless wallet automation. No MetaMask extension required.
 - **Process Cleanup**: Sometimes `next-server` and `anvil` processes may remain running in the background. Use `pnpm run test:clean` to kill them.
 - **Local Contract Deployment**: For deploying Safe contracts locally, see the instructions below.
 
@@ -259,7 +265,6 @@ To run your own local Safe contracts for development, follow these steps:
 
 ## TODO
 
-- [ ] Refactor E2E testing infrastructure from Synpress to support latest features.
 - [ ] Improve devcontainer setup for E2E tests; currently, UI mode has limitations.
 - [ ] Ensure smooth DX when switching between local and devcontainer environments and wild processes cleaning (next-server, anvil).
 - [ ] Adapt for different SafeWallet contract versions (currently optimized for 1.4.1-3).
@@ -279,7 +284,7 @@ To run your own local Safe contracts for development, follow these steps:
 - [RainbowKit](https://www.rainbowkit.com/)
 - [WalletConnect](https://walletconnect.com/)
 - [React Router](https://reactrouter.com/)
-- [Synpress](https://docs.synpress.io/)
+- [@wonderland/walletless](https://github.com/defi-wonderland/walletless)
 - [Playwright](https://playwright.dev/)
 - [Foundry](https://getfoundry.sh/)
 - [Pinata](https://pinata.cloud/)

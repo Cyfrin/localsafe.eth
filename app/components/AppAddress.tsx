@@ -36,6 +36,7 @@ export default function AppAddress({ address, className, testid, truncate = true
         (className ? " " + className : "")
       }
       data-testid={testid || "app-address"}
+      data-address={address}
     >
       {displayAddress}
     </span>

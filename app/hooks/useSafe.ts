@@ -284,7 +284,9 @@ export default function useSafe(safeAddress: `0x${string}`) {
               [chainId]: {
                 ...contractNetworks[chainId],
                 ...(customMultiSend.multiSendAddress && { multiSendAddress: customMultiSend.multiSendAddress }),
-                ...(customMultiSend.multiSendCallOnlyAddress && { multiSendCallOnlyAddress: customMultiSend.multiSendCallOnlyAddress }),
+                ...(customMultiSend.multiSendCallOnlyAddress && {
+                  multiSendCallOnlyAddress: customMultiSend.multiSendCallOnlyAddress,
+                }),
               },
             };
           }

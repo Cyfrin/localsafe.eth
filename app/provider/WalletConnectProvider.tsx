@@ -34,11 +34,7 @@ export interface WalletConnectContextType {
   rejectSession: () => Promise<void>;
   disconnectSession: (topic: string) => Promise<void>;
   approveRequest: (topic: string, response: WalletConnectResponse) => Promise<void>;
-  rejectRequest: (
-    topic: string,
-    error: { code: number; message: string },
-    requestId?: number,
-  ) => Promise<void>;
+  rejectRequest: (topic: string, error: { code: number; message: string }, requestId?: number) => Promise<void>;
   clearPendingRequest: () => void;
   error: Error | null;
   isInitialized: boolean;

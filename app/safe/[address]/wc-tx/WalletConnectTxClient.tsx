@@ -29,9 +29,9 @@ export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0
 
   const [txParams, setTxParams] = useState<TxParams | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [requestFromStorage, setRequestFromStorage] = useState<SignClientTypes.EventArguments["session_request"] | null>(
-    null,
-  );
+  const [requestFromStorage, setRequestFromStorage] = useState<
+    SignClientTypes.EventArguments["session_request"] | null
+  >(null);
   const [customNonce, setCustomNonce] = useState<string>("");
 
   // Flash the tab title to get user's attention
@@ -249,9 +249,11 @@ export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0
     );
   }
 
-  const dappMetadata = (currentRequest as unknown as {
-    params?: { proposer?: { metadata?: { icons?: string[]; name?: string; url?: string; description?: string } } };
-  })?.params?.proposer?.metadata;
+  const dappMetadata = (
+    currentRequest as unknown as {
+      params?: { proposer?: { metadata?: { icons?: string[]; name?: string; url?: string; description?: string } } };
+    }
+  )?.params?.proposer?.metadata;
 
   return (
     <AppSection testid="wc-tx-section">

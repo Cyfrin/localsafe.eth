@@ -49,7 +49,10 @@ export type ContractNetworks = {
   [chainId: string]: ContractAddresses;
 };
 
-export async function buildContractNetworks(chains: Array<{ id: number; contracts?: Record<string, any> }>, safeVersion = "1.4.1"): Promise<ContractNetworks> {
+export async function buildContractNetworks(
+  chains: Array<{ id: number; contracts?: Record<string, any> }>,
+  safeVersion = "1.4.1",
+): Promise<ContractNetworks> {
   const contractNetworks: ContractNetworks = {};
   for (const chain of chains) {
     const chainId = chain.id;

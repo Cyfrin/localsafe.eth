@@ -13,8 +13,8 @@
     "localsafe": "next build && npx serve out -p 3000",
     "anvil": "anvil --load-state ./anvil-safe-state.json --block-time 1",
     "test:e2e": "bash tests/scripts/start-anvil-and-test.sh",
+    "test:e2e:ui": "bash tests/scripts/start-anvil-and-test.sh --ui",
     "test:clean": "pkill -9 ^next-server || true; pkill -9 ^anvil",
-    "synpress:build": "anvil --chain-id 31337 > /dev/null 2>&1 & ANVIL_PID=$! && sleep 2 && xvfb-run pnpm exec synpress --force && kill $ANVIL_PID",
     "postinstall": "git config core.hooksPath .githooks && echo 'Git hooks installed' || true"
   },
   "dependencies": {
@@ -27,6 +27,7 @@
     "@wagmi/core": "^2.20.1",
     "@walletconnect/core": "^2.22.4",
     "@walletconnect/types": "^2.22.4",
+    "@wonderland/walletless": "TODO",
     "ethers": "^6.15.0",
     "next": "15.5.9",
     "react": "19.1.0",
@@ -39,7 +40,6 @@
     "@eslint/eslintrc": "^3",
     "@next/eslint-plugin-next": "^15.5.0",
     "@playwright/test": "1.48.2",
-    "@synthetixio/synpress": "^4.1.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
