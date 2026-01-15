@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useRef, useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
 import { useSafeWalletContext } from "../provider/SafeWalletProvider";
@@ -23,9 +23,18 @@ export default function AccountsPage() {
   const wagmiChains = useChains();
   const { switchChain } = useSwitchChain();
   const { safeWalletData, setSafeWalletData } = useSafeWalletContext();
+  const [searchParams] = useSearchParams();
 
-  // State for toggling deployed/undeployed safes
+  // State for toggling deployed/undeployed safes - default based on URL param
   const [showDeployed, setShowDeployed] = useState(true);
+
+  // Set initial view based on URL query parameter
+  useEffect(() => {
+    const view = searchParams.get("view");
+    if (view === "undeployed") {
+      setShowDeployed(false);
+    }
+  }, [searchParams]);
   // State for import modal and preview
   const [showImportModal, setShowImportModal] = useState<boolean>(false);
   const [importPreview, setImportPreview] = useState<SafeWalletData | { error: string } | null>(null);

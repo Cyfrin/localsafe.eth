@@ -153,16 +153,12 @@ test("should save undeployed safe config for Sepolia and Anvil networks", async 
   await expect(page.locator('[data-testid="predicted-safe-address-value"]')).toBeVisible();
   await expect(page.locator('[data-testid="predicted-safe-address-value"]')).not.toHaveText("0x");
 
-  // Click Deploy New Safe
+  // Click Save Configuration (multi-chain flow)
   await page.locator('[data-testid="add-accounts-btn"]').click();
 
-  // Wait to be navigated back to accounts page (hash-based routing)
-  await page.waitForURL("**/#/accounts");
-  await expect(page.locator('[data-testid="toggle-deployed-undeployed"]')).toBeVisible();
+  // Wait to be navigated back to accounts page with undeployed view
+  await page.waitForURL("**/#/accounts?view=undeployed");
 
-  // Toggle to show undeployed safes
-  await page.locator('[data-testid="toggle-deployed-undeployed"]').click();
-
-  // Assert undeployed safe appears in the list
+  // Assert undeployed safe appears in the list (view is automatically set to undeployed)
   await expect(page.locator('[data-testid^="safe-account-row-"]')).toContainText("MultiNet Safe");
 });
