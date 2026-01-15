@@ -23,6 +23,8 @@ export const test = base.extend<{
   connectWallet: () => Promise<void>;
   /** Deploy a new Safe via the UI and return its address */
   deployTestSafe: (options?: DeployTestSafeOptions) => Promise<string>;
+  /** Switch the E2E wallet to a different chain */
+  setChain: (chainId: number) => Promise<void>;
 }>({
   // Set up E2E mode before each test
   page: async ({ page }, use) => {
@@ -130,9 +132,25 @@ export const test = base.extend<{
 
     await use(deployTestSafe);
   },
+
+  // Helper to switch chains in E2E mode
+  setChain: async ({ page }, use) => {
+    const setChain = async (chainId: number) => {
+      await page.evaluate((id) => window.__e2e?.setChain(id), chainId);
+      // Wait for chain change to propagate through wagmi
+      await page.waitForTimeout(500);
+    };
+    await use(setChain);
+  },
 });
 
 export { expect };
+
+// Anvil chain IDs for multi-chain testing
+export const ANVIL_CHAIN_IDS = {
+  anvil: 31337,
+  anvilTwo: 31338,
+} as const;
 
 // Re-export Anvil test account addresses for convenience
 export const ANVIL_ACCOUNTS = {

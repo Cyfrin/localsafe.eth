@@ -57,9 +57,9 @@ test("should sign a Safe transaction without executing (threshold not met)", asy
   // First create a transaction via the builder
   await page.getByTestId("safe-dashboard-go-to-builder-btn").click();
 
-  // Fill in a simple ETH transfer
+  // Fill in a simple ETH transfer (0 value to avoid needing ETH in Safe)
   await page.getByTestId("new-safe-tx-recipient-input").fill("0x1111111111111111111111111111111111111111");
-  await page.getByTestId("new-safe-tx-value-input").fill("1000000000000000"); // 0.001 ETH in wei
+  await page.getByTestId("new-safe-tx-value-input").fill("0");
   const addTxBtn = page.getByTestId("new-safe-tx-add-btn");
   await expect(addTxBtn).toBeEnabled();
   await addTxBtn.click();
@@ -78,7 +78,7 @@ test("should sign a Safe transaction without executing (threshold not met)", asy
   await broadcastBtn.waitFor({ state: "visible" });
   await expect(broadcastBtn).toBeDisabled();
 
-  // Sign transaction
+  // Sign transaction with account 1
   const signBtn = page.locator('[data-testid="tx-details-sign-btn"]');
   await signBtn.waitFor({ state: "visible" });
   await signBtn.click();
@@ -93,7 +93,70 @@ test("should sign a Safe transaction without executing (threshold not met)", asy
   await expect(broadcastBtn).toBeDisabled();
 });
 
-// Note: Full broadcast test would require switching accounts with @wonderland/walletless
-// to add a second signature. For now, we test signing with a single account.
-// A complete test would use setAccounts() from walletless to switch to account2,
-// add a second signature, then broadcast.
+test("should sign with multiple accounts and broadcast when threshold is met", async ({ page }) => {
+  // First create a transaction via the builder
+  await page.getByTestId("safe-dashboard-go-to-builder-btn").click();
+
+  // Fill in a simple ETH transfer (0 value to avoid needing ETH in Safe)
+  await page.getByTestId("new-safe-tx-recipient-input").fill("0x1111111111111111111111111111111111111111");
+  await page.getByTestId("new-safe-tx-value-input").fill("0");
+  const addTxBtn = page.getByTestId("new-safe-tx-add-btn");
+  await expect(addTxBtn).toBeEnabled();
+  await addTxBtn.click();
+
+  // Build the transaction
+  await expect(page.getByTestId("new-safe-tx-list-row-0")).toBeVisible();
+  const buildBtn = page.getByTestId("new-safe-tx-build-btn");
+  await expect(buildBtn).toBeEnabled();
+  await buildBtn.click();
+
+  // Wait for redirect to tx details page
+  await page.waitForSelector('[data-testid="tx-details-section"]', { state: "visible" });
+
+  // Sign transaction with account 1 (index 0)
+  const signBtn = page.locator('[data-testid="tx-details-sign-btn"]');
+  await signBtn.waitFor({ state: "visible" });
+  await signBtn.click();
+
+  // Wait for first signature
+  await expect(page.locator('[data-testid="tx-details-signatures-row"]')).toContainText("Sig 1:", { timeout: 10000 });
+  await expect(signBtn).toBeDisabled();
+
+  // Switch to account 2 (index 1) using walletless setSigningAccount
+  await page.evaluate(async () => {
+    console.log("[E2E] Calling setSigningAccount(1)");
+    await window.__e2e?.setSigningAccount(1);
+  });
+
+  // Wait for wagmi to process the accountsChanged event
+  await page.waitForTimeout(2000);
+
+  // After switching accounts, account 2 is the last signer needed (threshold=2, 1 sig exists)
+  // This triggers canExecuteDirectly=true which shows a dropdown instead of simple button
+
+  // Wait for the dropdown trigger button to be enabled
+  const signDropdownTrigger = page.getByTestId("tx-details-sign-dropdown-btn");
+  await expect(signDropdownTrigger).toBeEnabled({ timeout: 10000 });
+
+  // Click to open the dropdown
+  await signDropdownTrigger.click();
+
+  // Click "Sign Transaction" option in the dropdown
+  const signOption = page.getByTestId("tx-details-sign-option-btn");
+  await signOption.waitFor({ state: "visible" });
+  await signOption.click();
+
+  // Wait for second signature
+  await expect(page.locator('[data-testid="tx-details-signatures-row"]')).toContainText("Sig 2:", { timeout: 10000 });
+
+  // Now broadcast should be enabled (threshold of 2 met)
+  const broadcastBtn = page.locator('[data-testid="tx-details-broadcast-btn"]');
+  await expect(broadcastBtn).toBeEnabled({ timeout: 5000 });
+
+  // Click broadcast
+  await broadcastBtn.click();
+
+  // Wait for broadcast success modal
+  await page.waitForSelector('[data-testid="tx-details-broadcast-modal"]', { timeout: 30000 });
+  await expect(page.getByTestId("broadcast-modal-txhash-row")).toBeVisible();
+});

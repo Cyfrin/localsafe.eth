@@ -35,9 +35,6 @@ importers:
       '@walletconnect/types':
         specifier: ^2.22.4
         version: 2.22.4
-      '@wonderland/walletless':
-        specifier: file:/Users/matt/Documents/code/defi-wonderland/walletless
-        version: file:../../defi-wonderland/walletless(viem@2.35.1(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.22.4))(wagmi@2.16.6(@tanstack/query-core@5.90.2)(@tanstack/react-query@5.85.5(react@19.1.0))(@types/react@19.1.11)(bufferutil@4.0.9)(react@19.1.0)(typescript@5.9.2)(utf-8-validate@5.0.10)(viem@2.35.1(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.22.4))(zod@3.22.4))
       ethers:
         specifier: ^6.15.0
         version: 6.15.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
@@ -81,6 +78,9 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.1.8(@types/react@19.1.11)
+      '@wonderland/walletless':
+        specifier: ^1.1.0
+        version: 1.1.0(viem@2.35.1(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.22.4))(wagmi@2.16.6(@tanstack/query-core@5.90.2)(@tanstack/react-query@5.85.5(react@19.1.0))(@types/react@19.1.11)(bufferutil@4.0.9)(react@19.1.0)(typescript@5.9.2)(utf-8-validate@5.0.10)(viem@2.35.1(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.22.4))(zod@3.22.4))
       daisyui:
         specifier: ^5.0.54
         version: 5.0.54
@@ -1158,8 +1158,8 @@ packages:
   '@walletconnect/window-metadata@1.0.1':
     resolution: {integrity: sha512-9koTqyGrM2cqFRW517BPY/iEtUDx2r1+Pwwu5m7sJ7ka79wi3EyqhqcICk/yDmv6jAS1rjKgTKXlEhanYjijcA==}
 
-  '@wonderland/walletless@file:../../defi-wonderland/walletless':
-    resolution: {directory: ../../defi-wonderland/walletless, type: directory}
+  '@wonderland/walletless@1.1.0':
+    resolution: {integrity: sha512-P00T9rYqKzwqIOigiURtcZ0Vh0x1kqy/VXQjpPUPxrv2GUrmH9cuAKCjnfBl+VBF0+JkXr0EEtWEJhy+kUvVOw==}
     engines: {node: '>=20'}
     peerDependencies:
       viem: '>=2.0.0'
@@ -5635,7 +5635,7 @@ snapshots:
       '@walletconnect/window-getters': 1.0.1
       tslib: 1.14.1
 
-  '@wonderland/walletless@file:../../defi-wonderland/walletless(viem@2.35.1(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.22.4))(wagmi@2.16.6(@tanstack/query-core@5.90.2)(@tanstack/react-query@5.85.5(react@19.1.0))(@types/react@19.1.11)(bufferutil@4.0.9)(react@19.1.0)(typescript@5.9.2)(utf-8-validate@5.0.10)(viem@2.35.1(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.22.4))(zod@3.22.4))':
+  '@wonderland/walletless@1.1.0(viem@2.35.1(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.22.4))(wagmi@2.16.6(@tanstack/query-core@5.90.2)(@tanstack/react-query@5.85.5(react@19.1.0))(@types/react@19.1.11)(bufferutil@4.0.9)(react@19.1.0)(typescript@5.9.2)(utf-8-validate@5.0.10)(viem@2.35.1(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.22.4))(zod@3.22.4))':
     dependencies:
       viem: 2.35.1(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.22.4)
       wagmi: 2.16.6(@tanstack/query-core@5.90.2)(@tanstack/react-query@5.85.5(react@19.1.0))(@types/react@19.1.11)(bufferutil@4.0.9)(react@19.1.0)(typescript@5.9.2)(utf-8-validate@5.0.10)(viem@2.35.1(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.22.4))(zod@3.22.4)

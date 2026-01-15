@@ -582,7 +582,11 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
                   This Safe is not deployed yet. You can deploy it now to start using multi-signature features.
                 </div>
                 {isOwner ? (
-                  <button className="btn btn-primary w-full" onClick={handleDeployUndeployedSafe}>
+                  <button
+                    className="btn btn-primary w-full"
+                    onClick={handleDeployUndeployedSafe}
+                    data-testid="deploy-safe-btn"
+                  >
                     Deploy Safe
                   </button>
                 ) : (

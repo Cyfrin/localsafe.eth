@@ -672,6 +672,7 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
                         type="button"
                         tabIndex={0}
                         className="btn btn-success"
+                        data-testid="tx-details-sign-dropdown-btn"
                         onMouseDown={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -713,6 +714,7 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
                               }}
                               disabled={signing || broadcasting}
                               className="flex flex-col items-start py-3"
+                              data-testid="tx-details-sign-option-btn"
                             >
                               <span className="font-semibold">Sign Transaction</span>
                               <span className="text-xs opacity-70">Add your signature to the queue</span>
@@ -726,6 +728,7 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
                               }}
                               disabled={signing || broadcasting}
                               className="flex flex-col items-start py-3"
+                              data-testid="tx-details-execute-option-btn"
                             >
                               <span className="font-semibold">Execute Transaction</span>
                               <span className="text-xs opacity-70">
