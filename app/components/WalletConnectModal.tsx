@@ -344,9 +344,12 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
                           )}
                         </div>
                         <h4 className="mb-2 text-xl font-bold">
-                          {(pendingProposal as ProposalType).proposer?.metadata?.name || "Unknown dApp"} wants to connect
+                          {(pendingProposal as ProposalType).proposer?.metadata?.name || "Unknown dApp"} wants to
+                          connect
                         </h4>
-                        <p className="mb-2 text-center">{(pendingProposal as ProposalType).proposer?.metadata?.url || ""}</p>
+                        <p className="mb-2 text-center">
+                          {(pendingProposal as ProposalType).proposer?.metadata?.url || ""}
+                        </p>
                         <p className="mb-4 text-center text-sm text-gray-500">
                           {(pendingProposal as ProposalType).proposer?.metadata?.description || ""}
                         </p>

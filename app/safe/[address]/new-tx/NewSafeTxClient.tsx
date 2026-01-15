@@ -27,8 +27,7 @@ function getAbiMethods(abi: AbiFunctionItem[]): string[] {
   return abi
     .filter(
       (item) =>
-        item.type === "function" &&
-        (item.stateMutability === "nonpayable" || item.stateMutability === "payable"),
+        item.type === "function" && (item.stateMutability === "nonpayable" || item.stateMutability === "payable"),
     )
     .map(getFunctionSignature);
 }

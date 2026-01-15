@@ -19,6 +19,7 @@ import { SafeDeployStep, PendingSafeStatus, PayMethod } from "@/app/utils/types"
 import { Chain, zeroAddress } from "viem";
 import { useSafeWalletContext } from "@/app/provider/SafeWalletProvider";
 import { getRandomSafeName } from "@/app/utils/helpers";
+import { useToast } from "@/app/hooks/useToast";
 
 /**
  * Deploy New Safe Client Component
@@ -38,6 +39,7 @@ export default function CreateSafeClient() {
   const navigate = useNavigate();
   const { addSafe, contractNetworks } = useSafeWalletContext();
   const { predictNewSafeAddress, deployNewSafe } = useNewSafe();
+  const toast = useToast();
 
   // Local UI state for feedback
   const [isPredicting, setIsPredicting] = useState(false);
@@ -171,13 +173,14 @@ export default function CreateSafeClient() {
           }
           predictions[chain.id] = result;
         }
-        // Check if all predicted addresses match and none are deployed
+        // Check if all predicted addresses match, none are deployed, and none are zero address
         const addresses = Object.values(predictions).map((p) => p.address);
         const allMatch = addresses.every((addr) => addr === addresses[0]);
         const anyDeployed = Object.values(predictions).some((p) => p.isDeployed);
+        const anyZeroAddress = addresses.some((addr) => addr === zeroAddress);
 
-        // If all match and none deployed, return the result
-        if (allMatch && !anyDeployed) {
+        // If all match, none deployed, and no zero addresses, return the result
+        if (allMatch && !anyDeployed && !anyZeroAddress) {
           return { safeAddress: addresses[0], saltNonce, predictions };
         }
         saltNonce = (parseInt(saltNonce) + 1).toString();
@@ -318,6 +321,13 @@ export default function CreateSafeClient() {
    * @returns Promise<void>
    */
   async function handleValidateMultiChain() {
+    // Check if we have valid predicted addresses before proceeding
+    const validPredictions = selectedChains.filter((chain) => predictedAddresses[chain.id]);
+    if (validPredictions.length === 0) {
+      toast.error("Could not predict Safe address. Please check your network connection and try again.");
+      return;
+    }
+
     const validSigners = signers.filter(isValidAddress);
     // Add each selected chain safe to local storage
     selectedChains.forEach((chain) => {
@@ -347,7 +357,8 @@ export default function CreateSafeClient() {
         });
       }
     });
-    navigate("/accounts");
+    toast.success("Safe configuration saved. Deploy on each chain when ready.");
+    navigate("/accounts?view=undeployed");
   }
 
   /**
@@ -430,7 +441,12 @@ export default function CreateSafeClient() {
                     <button
                       type="button"
                       className="btn btn-primary"
-                      disabled={Object.values(predictedAddresses).some((addr) => !addr) || isPredicting || isDeploying}
+                      disabled={
+                        Object.keys(predictedAddresses).length === 0 ||
+                        Object.values(predictedAddresses).some((addr) => !addr) ||
+                        isPredicting ||
+                        isDeploying
+                      }
                       onClick={handleDeploySafe}
                       data-testid="create-safe-btn"
                     >
@@ -442,13 +458,14 @@ export default function CreateSafeClient() {
                       className="btn btn-accent"
                       disabled={
                         selectedChains.length === 0 ||
+                        Object.keys(predictedAddresses).length === 0 ||
                         Object.values(predictedAddresses).some((addr) => !addr) ||
                         isPredicting
                       }
                       onClick={handleValidateMultiChain}
                       data-testid="add-accounts-btn"
                     >
-                      Add accounts
+                      Save Configuration
                     </button>
                   )}
                 </div>

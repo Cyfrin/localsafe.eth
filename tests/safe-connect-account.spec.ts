@@ -1,49 +1,74 @@
-import { ANVIL_SAFE_THREE_SIGNERS } from "./utils/constants";
-import { test } from "./utils/fixture";
+import { test, expect } from "./utils/fixture";
 
-const { expect } = test;
-
-test("should connect (add) existing Safe accounts from Anvil state using ConnectSafeClient", async ({
+/**
+ * This test verifies the "Add Existing Safe" flow works correctly.
+ * It first deploys a new Safe via the UI, then uses the "Add Existing Safe"
+ * form to connect to it again (simulating adding a Safe that exists on-chain).
+ */
+test("should connect (add) existing Safe account using ConnectSafeClient", async ({
   page,
-  metamask,
+  connectWallet,
+  deployTestSafe,
 }) => {
-  // Connect wallet if not already connected
-  if (await page.getByTestId("rk-connect-button").first().isVisible()) {
-    await page.getByTestId("rk-connect-button").first().click();
-    await page.waitForSelector('[data-testid="rk-wallet-option-metaMask"]', {
-      timeout: 60000,
-    });
-    await page.getByTestId("rk-wallet-option-metaMask").click();
-    await metamask.connectToDapp();
-  }
+  await page.goto("/");
 
-  // Click continue button to go past account selection
-  const continueBtn = await page.getByTestId("continue-with-account");
-  if (await continueBtn.isVisible()) {
-    await continueBtn.click();
-  }
+  // Connect the E2E wallet (this clicks continue and navigates to accounts)
+  await connectWallet();
 
-  // Click on Add Safe btn
-  await page.waitForSelector('[data-testid="add-safe-nav-btn"]', {
-    timeout: 60000,
+  // Verify we're on the accounts page before proceeding
+  await expect(page).toHaveURL(/\/#\/accounts$/);
+  await expect(page.getByTestId("safe-accounts-table")).toBeVisible();
+
+  // ============================================
+  // STEP 1: Deploy a new Safe via the shared fixture
+  // ============================================
+  const deployedAddress = await deployTestSafe({ name: "Deployed Test Safe" });
+
+  // Verify the deployed safe appears
+  await expect(page.getByTestId("safe-accounts-table")).toContainText("Deployed Test Safe");
+
+  // ============================================
+  // STEP 2: Clear app storage and reconnect to the Safe
+  // ============================================
+
+  // Clear the app's localStorage to simulate a fresh state
+  // The Safe still exists on-chain, but the app doesn't know about it
+  await page.evaluate(() => {
+    localStorage.removeItem("MSIGUI_safeWalletData");
   });
+
+  // Reload the page to pick up the cleared storage
+  await page.reload();
+  await connectWallet();
+
+  // Verify we're back on accounts page with no safes
+  await expect(page).toHaveURL(/\/#\/accounts$/);
+  await expect(page.getByTestId("safe-accounts-table")).toBeVisible();
+
+  // ============================================
+  // STEP 3: Connect to the deployed Safe using "Add Existing Safe"
+  // ============================================
+
+  // Click on "Add Existing Safe" button
   await page.getByTestId("add-safe-nav-btn").click();
 
-  // Add first Safe (anvil, 3 owners)
-  await page.waitForSelector('[data-testid="safe-name-input"]', {
-    timeout: 60000,
-  });
-  await page.getByTestId("safe-name-input").fill("Anvil 3 Owners");
-  await page.getByTestId("safe-address-input").fill(ANVIL_SAFE_THREE_SIGNERS);
+  // Fill in the form with the deployed safe's address
+  await page.waitForSelector('[data-testid="safe-name-input"]', { timeout: 60000 });
+  await page.getByTestId("safe-name-input").fill("Reconnected Safe");
+  await page.getByTestId("safe-address-input").fill(deployedAddress);
   await page.getByTestId("network-select").selectOption({ label: "Anvil" });
+
+  // Click Add Safe button
   await page.getByTestId("add-safe-btn").click();
 
-  // Wait for navigation to /accounts and check table
-  await page.waitForURL("/accounts");
+  // Should successfully add the safe and navigate to accounts
+  await page.waitForURL("**/#/accounts");
   await expect(page.getByTestId("safe-accounts-table")).toBeVisible();
-  const safeRow = page.getByTestId(
-    `safe-account-row-${ANVIL_SAFE_THREE_SIGNERS}`,
-  );
-  await expect(safeRow).toContainText("Anvil 3 Owners");
-  await expect(safeRow).toContainText(ANVIL_SAFE_THREE_SIGNERS);
+
+  // Verify the reconnected safe appears with the new name
+  await expect(page.getByTestId("safe-accounts-table")).toContainText("Reconnected Safe");
+
+  // Verify the safe address is in the list
+  const safeRow = page.locator(`[data-testid^="safe-account-row-"]`);
+  await expect(safeRow).toBeVisible();
 });

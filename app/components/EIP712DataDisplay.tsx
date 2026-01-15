@@ -41,7 +41,7 @@ export default function EIP712DataDisplay({
           <h4 className="mb-1 text-sm font-semibold">Message Hash</h4>
           <p className="font-mono text-xs break-all">{messageHash}</p>
         </div>
-        <div className="rounded-lg border border-info/30 bg-info/10 p-3">
+        <div className="border-info/30 bg-info/10 rounded-lg border p-3">
           <h4 className="mb-1 text-sm font-semibold">
             {safeMessage ? "EIP-712 Digest (SafeMessage Hash)" : "EIP-712 Digest (Signing Hash)"}
           </h4>
