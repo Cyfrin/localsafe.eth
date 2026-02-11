@@ -94,10 +94,7 @@ test.describe("Multi-chain Safe deployment", () => {
     await page.getByTestId("add-accounts-btn").click();
 
     // Wait for navigation back to accounts page
-    await page.waitForURL("**/#/accounts");
-
-    // Toggle to show undeployed safes
-    await page.getByTestId("toggle-deployed-undeployed").click();
+    await page.waitForURL("**/#/accounts?view=undeployed");
 
     // Verify the Safe appears in the undeployed list
     await expect(page.locator('[data-testid^="safe-account-row-"]')).toContainText("MultiChain Safe");
@@ -139,10 +136,8 @@ test.describe("Multi-chain Safe deployment", () => {
 
     // Save as undeployed config
     await page.getByTestId("add-accounts-btn").click();
-    await page.waitForURL("**/#/accounts");
+    await page.waitForURL("**/#/accounts?view=undeployed");
 
-    // Toggle to undeployed and find the Safe
-    await page.getByTestId("toggle-deployed-undeployed").click();
     await expect(page.locator('[data-testid^="safe-account-row-"]')).toContainText("Deploy Test Safe");
 
     // Click on the Safe row to expand it (accordion)
@@ -212,10 +207,7 @@ test.describe("Multi-chain Safe deployment", () => {
 
     // Save as undeployed config
     await page.getByTestId("add-accounts-btn").click();
-    await page.waitForURL("**/#/accounts");
 
-    // Toggle to undeployed and navigate to Safe
-    await page.getByTestId("toggle-deployed-undeployed").click();
     const safeRow = page.locator('[data-testid^="safe-account-row-"]').filter({
       hasText: "Dual Chain Safe",
     });
