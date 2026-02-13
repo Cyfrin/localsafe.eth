@@ -14,6 +14,8 @@ import { useAccount } from "wagmi";
 import { useToast } from "@/app/hooks/useToast";
 import { calculateSafeTxHashes } from "@/app/utils/messageHashing";
 import { useWalletConnect } from "@/app/provider/WalletConnectProvider";
+import AddressInput from "@/app/components/AddressInput";
+import AppAddress from "@/app/components/AppAddress";
 
 /**
  * Maps chain IDs to chain names expected by Cyfrin tools
@@ -68,7 +70,8 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
   const [broadcasting, setBroadcasting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showAddSigModal, setShowAddSigModal] = useState(false);
-  const [signerAddress, setSignerAddress] = useState("");
+  const [signerInput, setSignerInput] = useState("");
+  const [signerAddress, setSignerAddress] = useState<string | undefined>();
   const [signatureData, setSignatureData] = useState("");
   const [eip712Data, setEip712Data] = useState<{
     domainHash: string;
@@ -409,7 +412,7 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
       }
 
       // Basic validation for address format
-      if (!signerAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
+      if (!/^0x[a-fA-F0-9]{40}$/.test(signerAddress)) {
         toast.error("Invalid signer address format");
         return;
       }
@@ -445,7 +448,8 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
 
       // Close modal and reset form
       setShowAddSigModal(false);
-      setSignerAddress("");
+      setSignerInput("");
+      setSignerAddress(undefined);
       setSignatureData("");
 
       toast.success("Signature added successfully!");
@@ -487,9 +491,7 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
               >
                 <div className="flex items-center justify-between px-4 py-3" data-testid="tx-details-to-row">
                   <span className="font-semibold">To</span>
-                  <span className="max-w-[60%] truncate" title={safeTx.data.to} data-testid="tx-details-to-value">
-                    {safeTx.data.to}
-                  </span>
+                  <AppAddress address={safeTx.data.to} truncate={false} testid="tx-details-to-value" />
                 </div>
                 <div className="flex items-center justify-between px-4 py-3" data-testid="tx-details-value-row">
                   <span className="font-semibold">Value (wei)</span>
@@ -909,12 +911,11 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
                       <label className="label">
                         <span className="label-text">Signer Address</span>
                       </label>
-                      <input
-                        type="text"
-                        placeholder="0x..."
-                        className="input input-bordered w-full font-mono"
-                        value={signerAddress}
-                        onChange={(e) => setSignerAddress(e.target.value)}
+                      <AddressInput
+                        value={signerInput}
+                        onChange={setSignerInput}
+                        onResolvedAddressChange={setSignerAddress}
+                        className="w-full"
                       />
                       <label className="label">
                         <span className="label-text-alt">The address that signed the transaction</span>
@@ -942,7 +943,8 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
                         className="btn btn-ghost"
                         onClick={() => {
                           setShowAddSigModal(false);
-                          setSignerAddress("");
+                          setSignerInput("");
+                          setSignerAddress(undefined);
                           setSignatureData("");
                         }}
                       >

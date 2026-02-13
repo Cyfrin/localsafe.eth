@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { isAddress } from "viem";
 import AppAddress from "./AppAddress";
+import AddressInput from "./AddressInput";
 
 type OwnerChange = {
   type: "add" | "remove";
@@ -18,7 +19,8 @@ type ManageOwnersModalProps = {
 };
 
 export default function ManageOwnersModal({ open, onClose, owners, threshold, onBatchUpdate }: ManageOwnersModalProps) {
-  const [newOwnerAddress, setNewOwnerAddress] = useState("");
+  const [newOwnerInput, setNewOwnerInput] = useState("");
+  const [newOwnerAddress, setNewOwnerAddress] = useState<string | undefined>();
   const [ownersToRemove, setOwnersToRemove] = useState<Set<string>>(new Set());
   const [ownersToAdd, setOwnersToAdd] = useState<string[]>([]);
   const [newThreshold, setNewThreshold] = useState(threshold);
@@ -30,7 +32,8 @@ export default function ManageOwnersModal({ open, onClose, owners, threshold, on
       setOwnersToRemove(new Set());
       setOwnersToAdd([]);
       setNewThreshold(threshold);
-      setNewOwnerAddress("");
+      setNewOwnerInput("");
+      setNewOwnerAddress(undefined);
     }
   }, [open, threshold]);
 
@@ -40,7 +43,7 @@ export default function ManageOwnersModal({ open, onClose, owners, threshold, on
   const hasChanges = ownersToRemove.size > 0 || ownersToAdd.length > 0 || newThreshold !== threshold;
 
   const handleAddOwnerToQueue = () => {
-    if (!isAddress(newOwnerAddress)) {
+    if (!newOwnerAddress || !isAddress(newOwnerAddress)) {
       alert("Invalid address");
       return;
     }
@@ -66,7 +69,8 @@ export default function ManageOwnersModal({ open, onClose, owners, threshold, on
     }
 
     setOwnersToAdd([...ownersToAdd, newOwnerAddress]);
-    setNewOwnerAddress("");
+    setNewOwnerInput("");
+    setNewOwnerAddress(undefined);
   };
 
   const handleToggleRemoveOwner = (owner: string) => {
@@ -188,12 +192,10 @@ export default function ManageOwnersModal({ open, onClose, owners, threshold, on
           <div className="border-base-300 rounded-box border p-4">
             <h4 className="mb-3 font-semibold">Add Owners</h4>
             <div className="mb-3 flex gap-2">
-              <input
-                type="text"
-                className="input input-bordered flex-1"
-                placeholder="0x..."
-                value={newOwnerAddress}
-                onChange={(e) => setNewOwnerAddress(e.target.value)}
+              <AddressInput
+                value={newOwnerInput}
+                onChange={setNewOwnerInput}
+                onResolvedAddressChange={setNewOwnerAddress}
                 disabled={isProcessing}
               />
               <button

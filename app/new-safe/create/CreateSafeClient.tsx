@@ -61,6 +61,8 @@ export default function CreateSafeClient() {
 
   // Owners state with auto-fill of connected wallet
   const [signers, setSigners] = useState<string[]>([""]);
+  // Resolved addresses parallel to signers (after ENS resolution)
+  const [resolvedSignerAddresses, setResolvedSignerAddresses] = useState<(string | undefined)[]>([undefined]);
   // Threshold state
   const [threshold, setThreshold] = useState<number>(1);
   // Salt nonce for Safe creation (number string for SDK compatibility)
@@ -82,6 +84,12 @@ export default function CreateSafeClient() {
         if (prev[0] !== signer) return [signer, ...prev.slice(1)];
         return prev;
       });
+      setResolvedSignerAddresses((prev) => {
+        const next = [...prev];
+        if (next.length === 0) return [signer];
+        next[0] = signer;
+        return next;
+      });
     }
   }, [signer, currentStep]);
 
@@ -92,6 +100,7 @@ export default function CreateSafeClient() {
    */
   function addSignerField() {
     setSigners((prev) => [...prev, ""]);
+    setResolvedSignerAddresses((prev) => [...prev, undefined]);
   }
 
   /**
@@ -101,6 +110,7 @@ export default function CreateSafeClient() {
    */
   function removeSignerField(signerIdx: number) {
     setSigners((prev) => prev.filter((_, idx) => idx !== signerIdx));
+    setResolvedSignerAddresses((prev) => prev.filter((_, idx) => idx !== signerIdx));
   }
 
   /**
@@ -111,6 +121,17 @@ export default function CreateSafeClient() {
    */
   function handleSignerChange(signerIdx: number, value: string) {
     setSigners((prevSigners) => prevSigners.map((owner, idx) => (idx === signerIdx ? value : owner)));
+  }
+
+  /**
+   * Update a resolved signer address by index (after ENS resolution)
+   */
+  function handleSignerResolvedAddressChange(signerIdx: number, resolvedAddress: string | undefined) {
+    setResolvedSignerAddresses((prev) => {
+      const next = [...prev];
+      next[signerIdx] = resolvedAddress;
+      return next;
+    });
   }
 
   // Step content as components (now with StepNetworks)
@@ -130,10 +151,12 @@ export default function CreateSafeClient() {
     <StepSigners
       key="signers"
       signers={signers}
+      resolvedSignerAddresses={resolvedSignerAddresses}
       threshold={threshold}
       addSignerField={addSignerField}
       removeSignerField={removeSignerField}
       handleSignerChange={handleSignerChange}
+      handleSignerResolvedAddressChange={handleSignerResolvedAddressChange}
       setThreshold={setThreshold}
       onNext={() => setCurrentStep(2)}
       onBack={() => setCurrentStep(0)}
@@ -205,12 +228,19 @@ export default function CreateSafeClient() {
     let cancelled = false;
     async function runPrediction() {
       // Only run prediction when entering step 2 with valid data
-      if (currentStep !== 2 || selectedChains.length === 0 || signers.filter(Boolean).length === 0 || threshold === 0)
+      if (
+        currentStep !== 2 ||
+        selectedChains.length === 0 ||
+        resolvedSignerAddresses.filter(Boolean).length === 0 ||
+        threshold === 0
+      )
         return;
       // Reset previous prediction state
       setIsPredicting(true);
       setPredictError(null);
-      const validSigners = signers.filter(isValidAddress);
+      const validSigners = resolvedSignerAddresses.filter(
+        (addr): addr is `0x${string}` => !!addr && isValidAddress(addr),
+      );
       try {
         // Predict consistent Safe address across selected chains
         const { saltNonce: foundSaltNonce, predictions } = await predictConsistentSafeAddressAcrossChains(
@@ -245,7 +275,7 @@ export default function CreateSafeClient() {
   }, [
     currentStep,
     selectedChains,
-    signers,
+    resolvedSignerAddresses,
     threshold,
     saltNonce,
     predictNewSafeAddress,
@@ -268,7 +298,9 @@ export default function CreateSafeClient() {
     setDeploySteps(DEFAULT_DEPLOY_STEPS.map((step) => ({ ...step })));
     setDeployTxHash(null);
     try {
-      const validSigners = signers.filter(isValidAddress);
+      const validSigners = resolvedSignerAddresses.filter(
+        (addr): addr is `0x${string}` => !!addr && isValidAddress(addr),
+      );
       const steps = await deployNewSafe(
         validSigners,
         threshold,
@@ -328,7 +360,9 @@ export default function CreateSafeClient() {
       return;
     }
 
-    const validSigners = signers.filter(isValidAddress);
+    const validSigners = resolvedSignerAddresses.filter(
+      (addr): addr is `0x${string}` => !!addr && isValidAddress(addr),
+    );
     // Add each selected chain safe to local storage
     selectedChains.forEach((chain) => {
       const address = predictedAddresses[chain.id];

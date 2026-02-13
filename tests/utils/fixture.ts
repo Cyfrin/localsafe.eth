@@ -1,4 +1,5 @@
 import { test as base, expect, Page } from "@playwright/test";
+import { mockEnsResolution, type EnsMappings } from "./ens-mock";
 
 /**
  * Extended Playwright test fixture for E2E testing with @wonderland/walletless.
@@ -25,6 +26,8 @@ export const test = base.extend<{
   deployTestSafe: (options?: DeployTestSafeOptions) => Promise<string>;
   /** Switch the E2E wallet to a different chain */
   setChain: (chainId: number) => Promise<void>;
+  /** Mock ENS name resolution with given name→address mappings */
+  mockEns: (mappings: EnsMappings) => Promise<void>;
 }>({
   // Set up E2E mode before each test
   page: async ({ page }, use) => {
@@ -141,6 +144,14 @@ export const test = base.extend<{
       await page.waitForTimeout(500);
     };
     await use(setChain);
+  },
+
+  // Helper to mock ENS name resolution via route interception
+  mockEns: async ({ page }, use) => {
+    const mockEns = async (mappings: EnsMappings) => {
+      await mockEnsResolution(page, mappings);
+    };
+    await use(mockEns);
   },
 });
 
