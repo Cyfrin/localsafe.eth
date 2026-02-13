@@ -9,6 +9,7 @@ import useSafe from "@/app/hooks/useSafe";
 import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
 import EIP712DataDisplay from "@/app/components/EIP712DataDisplay";
+import AddressInput from "@/app/components/AddressInput";
 import { useAccount, useChainId } from "wagmi";
 import { ethers } from "ethers";
 import type { SignClientTypes } from "@walletconnect/types";
@@ -42,7 +43,8 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
   const [signedMessage, setSignedMessage] = useState<any>(null);
   const [messageHash, setMessageHash] = useState<string>("");
   const [showAddSigModal, setShowAddSigModal] = useState(false);
-  const [signerAddress, setSignerAddress] = useState("");
+  const [signerInput, setSignerInput] = useState("");
+  const [signerAddress, setSignerAddress] = useState<string | undefined>();
   const [signatureData, setSignatureData] = useState("");
 
   // Flash the tab title to get user's attention
@@ -329,7 +331,7 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
 
     try {
       // Validate address format
-      if (!signerAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
+      if (!/^0x[a-fA-F0-9]{40}$/.test(signerAddress)) {
         toast.error("Invalid signer address format");
         return;
       }
@@ -352,7 +354,8 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
       setSignedMessage({ ...signedMessage }); // Force re-render
 
       // Clear form
-      setSignerAddress("");
+      setSignerInput("");
+      setSignerAddress(undefined);
       setSignatureData("");
       setShowAddSigModal(false);
 
@@ -708,12 +711,11 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
               <label className="label">
                 <span className="label-text">Signer Address</span>
               </label>
-              <input
-                type="text"
-                placeholder="0x..."
-                className="input input-bordered w-full font-mono"
-                value={signerAddress}
-                onChange={(e) => setSignerAddress(e.target.value)}
+              <AddressInput
+                value={signerInput}
+                onChange={setSignerInput}
+                onResolvedAddressChange={setSignerAddress}
+                className="w-full"
               />
               <label className="label">
                 <span className="label-text-alt">The address that signed the message</span>
@@ -741,7 +743,8 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
                 className="btn"
                 onClick={() => {
                   setShowAddSigModal(false);
-                  setSignerAddress("");
+                  setSignerInput("");
+                  setSignerAddress(undefined);
                   setSignatureData("");
                 }}
               >

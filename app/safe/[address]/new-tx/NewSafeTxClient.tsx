@@ -3,6 +3,7 @@
 import AppSection from "@/app/components/AppSection";
 import { isValidAddress } from "@/app/utils/helpers";
 import AppCard from "@/app/components/AppCard";
+import AddressInput from "@/app/components/AddressInput";
 import { useState, useEffect, useRef } from "react";
 import React from "react";
 import useSafe from "@/app/hooks/useSafe";
@@ -98,6 +99,7 @@ export default function NewSafeTxClient({ safeAddress }: { safeAddress: `0x${str
 
   // Form state
   const [to, setTo] = useState("");
+  const [resolvedTo, setResolvedTo] = useState<string | undefined>();
   const [value, setValue] = useState("");
   const [data, setData] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -358,15 +360,10 @@ export default function NewSafeTxClient({ safeAddress }: { safeAddress: `0x${str
     e.preventDefault();
     setError(null);
 
-    // Validate recipient address
-    const toAddr = to.trim();
-    if (!toAddr || !toAddr.startsWith("0x") || toAddr.length !== 42) {
-      setError("Invalid recipient address format. Must be 42 characters starting with 0x.");
-      return;
-    }
-
-    if (!isValidAddress(toAddr)) {
-      setError("Invalid recipient address. Must contain only hexadecimal characters.");
+    // Validate recipient address (use resolved address from ENS or raw input)
+    const toAddr = resolvedTo?.trim();
+    if (!toAddr || !isValidAddress(toAddr)) {
+      setError("Invalid recipient address. Enter a valid 0x address or ENS name.");
       return;
     }
 
@@ -411,6 +408,7 @@ export default function NewSafeTxClient({ safeAddress }: { safeAddress: `0x${str
 
     // Reset form fields
     setTo("");
+    setResolvedTo(undefined);
     setValue("");
     setData("");
     setSelectedMethod("");
@@ -482,15 +480,13 @@ export default function NewSafeTxClient({ safeAddress }: { safeAddress: `0x${str
             >
               <fieldset className="fieldset" data-testid="new-safe-tx-recipient-fieldset">
                 <legend className="fieldset-legend">To</legend>
-                <input
-                  className="input input-bordered w-full"
+                <AddressInput
                   value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                  placeholder="0x..."
-                  autoComplete="off"
-                  pattern="^0x[a-fA-F0-9]{40}$"
+                  onChange={setTo}
+                  onResolvedAddressChange={setResolvedTo}
+                  className="w-full"
                   required
-                  data-testid="new-safe-tx-recipient-input"
+                  testId="new-safe-tx-recipient-input"
                 />
               </fieldset>
               <fieldset className="fieldset" data-testid="new-safe-tx-value-fieldset">

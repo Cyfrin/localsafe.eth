@@ -7,6 +7,7 @@ import { fetchTokenPrice } from "@/app/utils/coingecko";
 import { getCoinGeckoApiKey } from "./ApiKeyModal";
 import ApiKeyModal from "./ApiKeyModal";
 import TokenTransferModal from "./TokenTransferModal";
+import AddressInput from "./AddressInput";
 
 interface TokenInfo {
   address: string;
@@ -62,7 +63,8 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
   const [tokens, setTokens] = useState<TokenInfo[]>([]);
   const [balances, setBalances] = useState<TokenBalance[]>([]);
   const [loading, setLoading] = useState(false);
-  const [newTokenAddress, setNewTokenAddress] = useState("");
+  const [newTokenInput, setNewTokenInput] = useState("");
+  const [newTokenAddress, setNewTokenAddress] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [fetchingPrices, setFetchingPrices] = useState(false);
@@ -234,7 +236,8 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
           name: name as string,
         },
       ]);
-      setNewTokenAddress("");
+      setNewTokenInput("");
+      setNewTokenAddress(undefined);
       setShowAddToken(false);
     } catch {
       setError("Failed to fetch token info. Make sure it's a valid ERC20 token.");
@@ -382,13 +385,12 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
       {showAddToken && (
         <div className="bg-base-200 mb-4 rounded-lg p-4">
           <div className="flex gap-2">
-            <input
-              type="text"
-              className="input input-bordered flex-1 font-mono text-sm"
-              placeholder="Token contract address (0x...)"
-              value={newTokenAddress}
-              onChange={(e) => setNewTokenAddress(e.target.value)}
-              autoFocus
+            <AddressInput
+              value={newTokenInput}
+              onChange={setNewTokenInput}
+              onResolvedAddressChange={setNewTokenAddress}
+              placeholder="Token contract address (0x... or name.eth)"
+              className="flex-1 text-sm"
             />
             <button className="btn btn-primary btn-sm" onClick={handleAddToken} disabled={!newTokenAddress}>
               Add
@@ -397,7 +399,8 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
               className="btn btn-ghost btn-sm"
               onClick={() => {
                 setShowAddToken(false);
-                setNewTokenAddress("");
+                setNewTokenInput("");
+                setNewTokenAddress(undefined);
                 setError(null);
               }}
             >

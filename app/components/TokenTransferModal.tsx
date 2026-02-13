@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import Modal from "./Modal";
+import AddressInput from "./AddressInput";
 import { useNavigate } from "react-router-dom";
 import { encodeFunctionData, parseUnits } from "viem";
 import useSafe from "@/app/hooks/useSafe";
@@ -45,7 +46,8 @@ export default function TokenTransferModal({
   const { chain } = useAccount();
   const { buildSafeTransaction, getSafeTransactionHash, safeInfo } = useSafe(safeAddress as `0x${string}`);
   const { getAllTransactions } = useSafeTxContext();
-  const [recipient, setRecipient] = useState("");
+  const [recipientInput, setRecipientInput] = useState("");
+  const [resolvedRecipient, setResolvedRecipient] = useState<string | undefined>();
   const [amount, setAmount] = useState("");
   const [customNonce, setCustomNonce] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +110,7 @@ export default function TokenTransferModal({
     setError(null);
 
     // Validate recipient address
-    if (!/^0x[a-fA-F0-9]{40}$/.test(recipient)) {
+    if (!resolvedRecipient || !/^0x[a-fA-F0-9]{40}$/.test(resolvedRecipient)) {
       setError("Invalid recipient address");
       return;
     }
@@ -137,7 +139,7 @@ export default function TokenTransferModal({
       const data = encodeFunctionData({
         abi: ERC20_TRANSFER_ABI,
         functionName: "transfer",
-        args: [recipient as `0x${string}`, amountInUnits],
+        args: [resolvedRecipient as `0x${string}`, amountInUnits],
       });
 
       // Parse custom nonce if provided
@@ -183,7 +185,8 @@ export default function TokenTransferModal({
   }
 
   function handleClose() {
-    setRecipient("");
+    setRecipientInput("");
+    setResolvedRecipient(undefined);
     setAmount("");
     setCustomNonce("");
     setError(null);
@@ -215,13 +218,11 @@ export default function TokenTransferModal({
         <label className="label">
           <span className="label-text font-semibold">Recipient Address</span>
         </label>
-        <input
-          type="text"
-          className="input input-bordered w-full font-mono text-sm"
-          placeholder="0x..."
-          value={recipient}
-          onChange={(e) => setRecipient(e.target.value)}
-          pattern="^0x[a-fA-F0-9]{40}$"
+        <AddressInput
+          value={recipientInput}
+          onChange={setRecipientInput}
+          onResolvedAddressChange={setResolvedRecipient}
+          className="w-full text-sm"
         />
       </div>
 
@@ -311,7 +312,7 @@ export default function TokenTransferModal({
         <button
           className="btn btn-primary btn-sm"
           onClick={handleTransfer}
-          disabled={!recipient || !amount || isBuilding}
+          disabled={!resolvedRecipient || !amount || isBuilding}
         >
           {isBuilding ? "Creating Transaction..." : "Create Transfer Transaction"}
         </button>

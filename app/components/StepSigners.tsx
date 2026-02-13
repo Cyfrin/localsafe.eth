@@ -1,12 +1,15 @@
 import React from "react";
 import StepLayout from "./StepLayout";
+import AddressInput from "./AddressInput";
 
 interface StepSignersProps {
   signers: string[];
+  resolvedSignerAddresses: (string | undefined)[];
   threshold: number;
   addSignerField: () => void;
   removeSignerField: (idx: number) => void;
   handleSignerChange: (idx: number, value: string) => void;
+  handleSignerResolvedAddressChange: (idx: number, resolvedAddress: string | undefined) => void;
   setThreshold: (value: number) => void;
   onNext: () => void;
   onBack: () => void;
@@ -26,26 +29,31 @@ interface StepSignersProps {
  */
 export default function StepSigners({
   signers,
+  resolvedSignerAddresses,
   threshold,
   addSignerField,
   removeSignerField,
   handleSignerChange,
+  handleSignerResolvedAddressChange,
   setThreshold,
   onNext,
   onBack,
 }: StepSignersProps) {
-  // Validation logic
+  // Validation logic using resolved addresses
   const addressPattern = /^0x[a-fA-F0-9]{40}$/;
-  const allSignersValid = signers.length > 0 && signers.every((addr) => addressPattern.test(addr));
-  const lowerSigners = signers.map((addr) => addr.toLowerCase());
-  const duplicateIndexes = lowerSigners
-    .map((addr, idx, arr) => (arr.indexOf(addr) !== idx ? idx : -1))
+  const allSignersValid =
+    resolvedSignerAddresses.length > 0 && resolvedSignerAddresses.every((addr) => !!addr && addressPattern.test(addr));
+  const lowerResolved = resolvedSignerAddresses.map((addr) => addr?.toLowerCase() ?? "");
+  const duplicateIndexes = lowerResolved
+    .map((addr, idx, arr) => (addr && arr.indexOf(addr) !== idx ? idx : -1))
     .filter((idx) => idx !== -1);
   const hasDuplicates = duplicateIndexes.length > 0;
 
-  const getInputErrorClass = (value: string, idx: number) => {
-    if (!value) return "";
-    const isInvalid = !addressPattern.test(value);
+  const getInputErrorClass = (idx: number) => {
+    const resolved = resolvedSignerAddresses[idx];
+    const raw = signers[idx];
+    if (!raw) return "";
+    const isInvalid = !resolved || !addressPattern.test(resolved);
     const isDuplicate = duplicateIndexes.includes(idx);
     return isInvalid || isDuplicate ? "input-error" : "";
   };
@@ -78,17 +86,14 @@ export default function StepSigners({
         {signers.map((owner, idx) => (
           <fieldset key={idx} className="fieldset col-span-2">
             <legend className="fieldset-legend">Owner {idx + 1}</legend>
-            <div className="flex items-center gap-2">
-              <input
-                id={`owner-${idx}`}
-                type="text"
+            <div className="flex items-start gap-2">
+              <AddressInput
                 value={owner}
-                onChange={(e) => handleSignerChange(idx, e.target.value)}
-                placeholder="0x..."
-                className={`input flex-1 ${getInputErrorClass(owner, idx)}`}
-                pattern="^0x[a-fA-F0-9]{40}$"
+                onChange={(val) => handleSignerChange(idx, val)}
+                onResolvedAddressChange={(addr) => handleSignerResolvedAddressChange(idx, addr)}
+                className={`flex-1 ${getInputErrorClass(idx)}`}
                 required
-                data-testid={`signer-input-${idx}`}
+                testId={`signer-input-${idx}`}
               />
               {signers.length > 1 && (
                 <button type="button" className="btn btn-outline btn-secondary" onClick={() => removeSignerField(idx)}>
