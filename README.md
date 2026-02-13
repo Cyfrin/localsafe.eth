@@ -274,7 +274,6 @@ To run your own local Safe contracts for development, follow these steps:
 - [ ] Ensure smooth DX when switching between local and devcontainer environments and wild processes cleaning (next-server, anvil).
 - [ ] Adapt for different SafeWallet contract versions (currently optimized for 1.4.1-3).
 - [ ] Automate `version` value in `DEFAULT_SAFE_WALLET_DATA` constant (`app/utils/constants.ts` hardcoded to `3.0.0` now).
-- [ ] Add ENS name resolution for addresses in the UI.
 - [ ] Implement transaction history and filtering.
 
 
