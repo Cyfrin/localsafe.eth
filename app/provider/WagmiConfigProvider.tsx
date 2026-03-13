@@ -39,6 +39,30 @@ const anvilTwo = defineChain({
   testnet: true,
 });
 
+// Battlechain testnet configuration with Safe contract addresses
+const battlechainTestnet = defineChain({
+  id: 627,
+  name: "BattleChain Testnet",
+  nativeCurrency: { decimals: 18, name: "Ether", symbol: "ETH" },
+  rpcUrls: {
+    default: { http: ["https://testnet.battlechain.com:3051"] },
+  },
+  blockExplorers: {
+    default: { name: "BattleChain Explorer", url: "https://explorer.testnet.battlechain.com" },
+  },
+  testnet: true,
+  contracts: {
+    safeSingleton: { address: "0x71314F3E6B1D9386A1de784B644Cf5D0Dde3bB97" },
+    safeProxyFactory: { address: "0x80DbD037C59521F393fDfE15504c6b6b7969F1a1" },
+    createCall: { address: "0x670D1c4c5cc72193b352562Ed75B9ae8224E98b3" },
+    multiSend: { address: "0x69BEaBc6824ba1461F53800d9C3F29FFeC7cf408" },
+    multiSendCallOnly: { address: "0xa6a3C9103C062429e459D263bF5EcCd31Effd56C" },
+    signMessageLib: { address: "0x930833004d88b8bF3208a216323aFfdf9D40C14C" },
+    fallbackHandler: { address: "0xc6B2C6982A5643b7702894D4A0901b9371dd1283" },
+    tokenCallbackHandler: { address: "0x232898253fABB3a1EB585bdEE4bE2a36f6D6fd64" },
+  },
+});
+
 // Extend Window interface for E2E testing utilities
 declare global {
   interface Window {
@@ -86,6 +110,7 @@ import celoIcon from "../assets/chainIcons/celo.svg";
 import mantleIcon from "../assets/chainIcons/mantle.svg";
 import storyIcon from "../assets/chainIcons/story.svg";
 import hardhatIcon from "../assets/chainIcons/hardhat.svg";
+import battlechainIcon from "../assets/chainIcons/battlechain.svg";
 
 // Helper to add icon URLs to chains
 const addChainIcon = (chain: Chain, iconUrl: string): Chain =>
@@ -110,6 +135,10 @@ const withOptionalRpcOverride = (chain: Chain, envRpcUrl: string | undefined): C
 // All chains support RPC override via env vars for reliability and privacy
 const DEFAULT_CHAINS: Chain[] = [
   addChainIcon(withOptionalRpcOverride(mainnet, process.env.NEXT_PUBLIC_MAINNET_RPC_URL), ethereumIcon.src),
+  addChainIcon(
+    withOptionalRpcOverride(battlechainTestnet, process.env.NEXT_PUBLIC_BATTLECHAIN_TESTNET_RPC_URL),
+    battlechainIcon.src,
+  ),
   addChainIcon(withOptionalRpcOverride(arbitrum, process.env.NEXT_PUBLIC_ARBITRUM_RPC_URL), arbitrumIcon.src),
   addChainIcon(withOptionalRpcOverride(optimism, process.env.NEXT_PUBLIC_OPTIMISM_RPC_URL), optimismIcon.src),
   addChainIcon(withOptionalRpcOverride(base, process.env.NEXT_PUBLIC_BASE_RPC_URL), baseIcon.src),
