@@ -32,6 +32,7 @@ jobs:
         run: pnpm run build
         env:
           NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: ${{ secrets.WALLETCONNECT_PROJECT_ID }}
+          NEXT_PUBLIC_IPFS_BUILD: "true"
 
       - name: Deploy to Pinata
         id: pinata
