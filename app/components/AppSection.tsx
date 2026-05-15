@@ -10,8 +10,7 @@ export default function AppSection({ children, className, testid }: AppSectionPr
   return (
     <section
       className={
-        "container mx-auto flex w-full flex-col gap-8 px-4 py-8 sm:px-8 sm:py-12" +
-        (className ? " " + className : "")
+        "container mx-auto flex w-full flex-col gap-8 px-4 py-8 sm:px-8 sm:py-12" + (className ? " " + className : "")
       }
       data-testid={testid || "app-section"}
     >

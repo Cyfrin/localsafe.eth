@@ -34,12 +34,8 @@ export default function HomePageClient() {
           priority
         />
         <div className="flex flex-col">
-          <span className="font-mono text-[11px] tracking-[0.25em] uppercase opacity-60">
-            cyfrin / safe-ops
-          </span>
-          <span className="font-mono text-2xl font-bold tracking-[0.04em] sm:text-3xl">
-            localsafe.eth
-          </span>
+          <span className="font-mono text-[11px] tracking-[0.25em] uppercase opacity-60">cyfrin / safe-ops</span>
+          <span className="font-mono text-2xl font-bold tracking-[0.04em] sm:text-3xl">localsafe.eth</span>
         </div>
       </section>
 
@@ -47,17 +43,13 @@ export default function HomePageClient() {
       <p className="mt-8 font-mono text-[15px] leading-relaxed">
         a static, local-first interface for Safe smart accounts.
         <br />
-        <span className="opacity-65">
-          no backend. no tracking. no custody. served from your filesystem or ipfs.
-        </span>
+        <span className="opacity-65">no backend. no tracking. no custody. served from your filesystem or ipfs.</span>
       </p>
 
       {/* connect panel — single quiet block */}
       <section className="surface mt-10 p-5 sm:p-6">
         <div className="flex items-center justify-between">
-          <span className="font-mono text-[11px] tracking-[0.2em] uppercase opacity-60">
-            &gt; status
-          </span>
+          <span className="font-mono text-[11px] tracking-[0.2em] uppercase opacity-60">&gt; status</span>
           {isConnected ? (
             <span className="status-pill status-pill--live">
               <span className="dot" />
@@ -76,9 +68,7 @@ export default function HomePageClient() {
         {isConnected ? (
           <div className="mt-4 flex flex-col gap-4">
             <div>
-              <div className="font-mono text-[11px] tracking-[0.2em] uppercase opacity-60">
-                signer
-              </div>
+              <div className="font-mono text-[11px] tracking-[0.2em] uppercase opacity-60">signer</div>
               <div className="bg-base-200 border-base-content mt-1 truncate border-2 px-3 py-2 font-mono text-sm">
                 {displayAddress}
               </div>
@@ -117,9 +107,7 @@ export default function HomePageClient() {
 
       {/* manifest — quiet signed-message style */}
       <section className="mt-12 font-mono text-[12px] leading-relaxed opacity-70">
-        <div className="tracking-[0.2em] uppercase opacity-80">
-          ----- begin localsafe manifest -----
-        </div>
+        <div className="tracking-[0.2em] uppercase opacity-80">----- begin localsafe manifest -----</div>
         <ul className="mt-3 space-y-1.5 pl-1">
           <li>
             <span className="opacity-50">·</span> client-side only. nothing routes through a server.
@@ -131,19 +119,19 @@ export default function HomePageClient() {
             <span className="opacity-50">·</span> deterministic. static export, ipfs-pinnable.
           </li>
           <li>
-            <span className="opacity-50">·</span> open. <a
+            <span className="opacity-50">·</span> open.{" "}
+            <a
               href="https://github.com/Cyfrin/localsafe.eth"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-base-content underline underline-offset-2 hover:opacity-100"
             >
               source on github
-            </a>.
+            </a>
+            .
           </li>
         </ul>
-        <div className="mt-4 tracking-[0.2em] uppercase opacity-80">
-          ----- end localsafe manifest -----
-        </div>
+        <div className="mt-4 tracking-[0.2em] uppercase opacity-80">----- end localsafe manifest -----</div>
       </section>
     </main>
   );
