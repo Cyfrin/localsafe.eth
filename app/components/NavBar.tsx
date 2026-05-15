@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
+import localsafeLogo from "../localsafe.png";
 import NetworkModal from "./NetworkModal";
 import CustomConnectButton from "./CustomConnectButton";
 import { useAccount } from "wagmi";
@@ -83,14 +85,34 @@ export default function NavBar() {
   }, [checkChain]);
 
   return (
-    <nav className="navbar bg-base-200 border-base-100 sticky top-0 z-20 w-full justify-between border-b px-1 sm:px-4">
-      <div className="flex items-center">
-        <Link className="mx-2 px-2 text-sm font-bold sm:text-xl" to="/accounts">
-          localsafe.eth
+    <nav
+      className="bg-base-100 border-base-content sticky top-0 z-20 flex min-h-16 w-full items-stretch justify-between border-b-2"
+      data-testid="nav-bar"
+    >
+      <div className="flex items-stretch">
+        <Link
+          to="/accounts"
+          className="border-base-content hover:bg-base-200 flex items-center gap-3 border-r-2 px-4 transition-colors sm:px-6"
+        >
+          <Image
+            src={localsafeLogo}
+            alt=""
+            width={28}
+            height={28}
+            priority
+            className="logo-invert"
+          />
+          <span className="font-mono text-sm font-bold tracking-[0.06em] sm:text-base">
+            localsafe.eth
+          </span>
         </Link>
       </div>
-      <div className="flex items-center">
-        <Link to="/settings" className="btn btn-ghost btn-circle" title="Advanced Settings">
+      <div className="flex items-stretch">
+        <Link
+          to="/settings"
+          className="border-base-content hover:bg-base-200 flex items-center justify-center border-l-2 px-3"
+          title="Advanced Settings"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -107,32 +129,35 @@ export default function NavBar() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </Link>
-        <button className="btn btn-ghost btn-circle relative" onClick={handleOpenWcModal} title="WalletConnect">
+        <button
+          className="border-base-content hover:bg-base-200 relative flex items-center justify-center border-l-2 px-3"
+          onClick={handleOpenWcModal}
+          title="WalletConnect"
+        >
           <WalletConnectSvg className="h-5 w-5" />
           {(sessions.length > 0 || pendingProposal) && (
-            <div className="badge badge-primary badge-xs absolute top-1 right-1">
+            <span className="bg-primary text-primary-content border-base-content absolute top-1 right-1 border-2 px-1 font-mono text-[9px] leading-none font-bold">
               {pendingProposal ? "!" : sessions.length}
-            </div>
+            </span>
           )}
         </button>
-        <div className="divider divider-horizontal mx-1"></div>
-        <label className="swap swap-rotate">
+        <label className="border-base-content hover:bg-base-200 flex cursor-pointer items-center justify-center border-l-2 px-3">
           <input
             type="checkbox"
-            className="theme-controller"
+            className="theme-controller sr-only"
             value="dark"
             checked={isDarkMode}
             onChange={() => setIsDarkMode(!isDarkMode)}
           />
-          <SunSvg />
-          <MoonSvg />
+          {isDarkMode ? <MoonSvg /> : <SunSvg />}
         </label>
-        <div className="divider divider-horizontal mx-1"></div>
-        <CustomConnectButton
-          onOpenNetworkModal={handleOpenNetworkModal}
-          showNetworkFormIndicator={showNetworkFormIndicator}
-          chainStatusDisplay={showNetworkFormIndicator ? "none" : { smallScreen: "icon", largeScreen: "full" }}
-        />
+        <div className="border-base-content flex items-center border-l-2 px-3">
+          <CustomConnectButton
+            onOpenNetworkModal={handleOpenNetworkModal}
+            showNetworkFormIndicator={showNetworkFormIndicator}
+            chainStatusDisplay={showNetworkFormIndicator ? "none" : { smallScreen: "icon", largeScreen: "full" }}
+          />
+        </div>
         <NetworkModal
           open={networkModalOpen}
           onClose={handleCloseNetworkModal}

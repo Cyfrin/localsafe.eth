@@ -53,3 +53,7 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 /.cache-synpress/
+
+# Cyfrin
+.claude/
+.cygent/
