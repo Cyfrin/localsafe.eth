@@ -8,6 +8,16 @@ const HERE = import.meta.dirname;
 const ROOT = path.resolve(HERE, "..");
 const OUT = path.join(ROOT, "out");
 
+// Every Pinata pin from this project shares this name prefix. After a
+// successful pin, any other pin starting with this prefix is removed so
+// Pinata only mirrors the current release.
+const PIN_NAME_PREFIX = "localsafe-";
+
+function readProjectVersion() {
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf-8"));
+  return pkg.version || "0.0.0";
+}
+
 export function collectFiles(dir, prefix = "") {
   const files = [];
   const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
@@ -35,18 +45,13 @@ export async function computeLocalCid(files) {
   return rootCid.toString();
 }
 
-async function pinToPinata(files, jwt) {
+async function pinToPinata(files, jwt, version) {
   const formData = new FormData();
   for (const f of files) {
     formData.append("file", new Blob([f.content]), `out/${f.path}`);
   }
   formData.append("pinataOptions", JSON.stringify({ cidVersion: 1 }));
-  formData.append(
-    "pinataMetadata",
-    JSON.stringify({
-      name: `localsafe-${new Date().toISOString().slice(0, 10)}`,
-    }),
-  );
+  formData.append("pinataMetadata", JSON.stringify({ name: `${PIN_NAME_PREFIX}${version}` }));
 
   const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
     method: "POST",
@@ -60,6 +65,45 @@ async function pinToPinata(files, jwt) {
 
   const data = await res.json();
   return data.IpfsHash;
+}
+
+// Return all currently-pinned items whose metadata.name starts with our
+// prefix. Paginates through Pinata's list endpoint.
+async function listPriorLocalsafePins(jwt) {
+  const out = [];
+  const limit = 1000;
+  let offset = 0;
+  while (true) {
+    const url = `https://api.pinata.cloud/data/pinList?status=pinned&pageLimit=${limit}&pageOffset=${offset}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${jwt}` },
+    });
+    if (!res.ok) {
+      throw new Error(`Pinata list failed (${res.status}): ${await res.text()}`);
+    }
+    const json = await res.json();
+    const rows = json.rows ?? [];
+    for (const r of rows) {
+      if (r.metadata?.name?.startsWith(PIN_NAME_PREFIX)) {
+        out.push({ hash: r.ipfs_pin_hash, name: r.metadata.name });
+      }
+    }
+    if (rows.length < limit) break;
+    offset += limit;
+  }
+  return out;
+}
+
+async function unpinFromPinata(jwt, hash) {
+  const res = await fetch(`https://api.pinata.cloud/pinning/unpin/${hash}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+  if (res.ok) return;
+  const text = await res.text();
+  // Pinata returns 200 "Unpinned" on success; treat "already not pinned" as no-op.
+  if (text.toLowerCase().includes("not pinned")) return;
+  throw new Error(`Pinata unpin failed (${res.status}): ${text}`);
 }
 
 function bytesToHuman(bytes) {
@@ -87,8 +131,10 @@ async function pin() {
 
   let pinataCid = null;
   if (env.PINATA_JWT) {
-    console.log("\nPinning to Pinata...");
-    pinataCid = await pinToPinata(files, env.PINATA_JWT);
+    const version = readProjectVersion();
+    const pinName = `${PIN_NAME_PREFIX}${version}`;
+    console.log(`\nPinning to Pinata as "${pinName}"...`);
+    pinataCid = await pinToPinata(files, env.PINATA_JWT, version);
     console.log(`  ${pinataCid}`);
     if (pinataCid !== localCid) {
       console.error("\n  ✗ CID MISMATCH");
@@ -98,6 +144,27 @@ async function pin() {
       process.exit(1);
     }
     console.log("  ✓ CIDs match");
+
+    // Replace prior releases — Pinata is a mirror, not an archive. Older
+    // CIDs are preserved in GitHub release notes and on whoever else is
+    // pinning them (your Kubo node, eth.limo gateway cache, etc).
+    const prior = await listPriorLocalsafePins(env.PINATA_JWT);
+    const stale = prior.filter((p) => p.hash !== pinataCid);
+    if (stale.length === 0) {
+      console.log("  (no prior pins to replace)");
+    } else {
+      console.log(`\nReplacing ${stale.length} prior pin${stale.length === 1 ? "" : "s"}…`);
+      for (const p of stale) {
+        process.stdout.write(`  unpin ${p.name} (${p.hash})… `);
+        try {
+          await unpinFromPinata(env.PINATA_JWT, p.hash);
+          console.log("ok");
+        } catch (err) {
+          console.log("FAILED");
+          console.error(`    ${err.message}`);
+        }
+      }
+    }
   } else {
     console.log("\nPINATA_JWT not set in release/.env. Skipping Pinata mirror.");
     console.log("  (Set PINATA_JWT to also pin to Pinata's public service.)");
