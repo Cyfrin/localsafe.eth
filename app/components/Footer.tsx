@@ -12,36 +12,41 @@ export default function Footer() {
   const version = process.env.NEXT_PUBLIC_APP_VERSION || packageJson.version || "0.0.0";
 
   return (
-    <footer className="footer bg-base-200 border-base-100 w-full border-t px-4 py-4">
-      <div className="container mx-auto flex items-center justify-between">
-        {/* Left side - empty for now */}
-        <div className="flex-1"></div>
-
-        {/* Center - Powered by Cyfrin logo */}
-        <div className="flex flex-1 items-center justify-center">
-          <a
-            href="https://www.cyfrin.io/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="transition-opacity hover:opacity-80"
-          >
-            <Image src={isDarkMode ? poweredByCyfrinBright : poweredByCyfrinDark} alt="Powered by Cyfrin" height={32} />
-          </a>
+    <footer className="bg-base-100 border-base-content w-full border-t-2">
+      <div className="container mx-auto flex flex-col items-stretch gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+        <div className="flex items-center gap-3">
+          <span className="ascii-label">BUILD&nbsp;v{version}</span>
+          <span aria-hidden className="text-base-content/40 hidden font-mono text-xs sm:inline">
+            ////////
+          </span>
+          <span className="font-mono text-[11px] tracking-[0.15em] uppercase opacity-60">
+            self-custody &middot; local-first
+          </span>
         </div>
 
-        {/* Right side - Version and GitHub link */}
-        <div className="flex flex-1 items-center justify-end gap-3">
-          <span className="text-base-content text-sm opacity-60">v{version}</span>
-          <a
-            href="https://github.com/Cyfrin/localsafe.eth"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-base-content transition-opacity hover:opacity-70"
-            aria-label="View source on GitHub"
-          >
-            <GithubSvg />
-          </a>
-        </div>
+        <a
+          href="https://www.cyfrin.io/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:translate-x-[1px] transition-opacity hover:opacity-80"
+        >
+          <Image
+            src={isDarkMode ? poweredByCyfrinBright : poweredByCyfrinDark}
+            alt="Powered by Cyfrin"
+            height={28}
+          />
+        </a>
+
+        <a
+          href="https://github.com/Cyfrin/localsafe.eth"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="border-base-content hover:bg-base-200 inline-flex items-center gap-2 self-start border-2 px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.15em] uppercase transition-colors sm:self-auto"
+          aria-label="View source on GitHub"
+        >
+          <GithubSvg />
+          <span>Source</span>
+        </a>
       </div>
     </footer>
   );

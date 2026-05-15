@@ -338,12 +338,18 @@ export const WagmiConfigProvider: React.FC<{
           <RainbowKitProvider
             theme={{
               lightMode: lightTheme({
-                accentColor: "#605dff",
-                accentColorForeground: "white",
+                accentColor: "#0a0908",
+                accentColorForeground: "#f1ece0",
+                borderRadius: "none",
+                fontStack: "system",
+                overlayBlur: "none",
               }),
               darkMode: darkTheme({
-                accentColor: "#605dff",
-                accentColorForeground: "white",
+                accentColor: "#f1ece0",
+                accentColorForeground: "#0a0908",
+                borderRadius: "none",
+                fontStack: "system",
+                overlayBlur: "none",
               }),
             }}
           >
