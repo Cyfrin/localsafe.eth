@@ -77,9 +77,8 @@ This:
 
 1. Reads the on-chain contenthash from the resolver and decodes it.
 2. Verifies it matches the CID in `release-manifest.json` (refuses if not).
-3. Creates a **draft** GitHub release at `v<package.version>+<short-commit>` (or the current git tag if HEAD is tagged) with notes containing the CID, contenthash, Safe + resolver Etherscan links, and IPFS gateway URLs.
-
-Review the draft on github.com and click "Publish release" when satisfied.
+3. Requires HEAD to be at a git tag (typically the one `pnpm release patch|minor|major` just created). Pass `--tag vX.Y.Z` to override.
+4. Creates a published GitHub release at that tag with notes containing the CID, contenthash, Safe + resolver Etherscan links, and IPFS gateway URLs.
 
 ## Files
 

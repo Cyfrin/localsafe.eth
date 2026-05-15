@@ -41,14 +41,14 @@ function parseArgs(argv) {
   return args;
 }
 
-function defaultTag(manifest) {
-  // Prefer the package.json version if it differs from the last tag — otherwise
-  // fall back to date+commit so reruns don't collide.
-  if (manifest.version && !manifest.git.tag) {
-    return `v${manifest.version}+${manifest.git.shortCommit}`;
-  }
+function resolveTag(manifest, override) {
+  if (override) return override;
   if (manifest.git.tag) return manifest.git.tag;
-  return `v${manifest.builtAt.slice(0, 10)}-${manifest.git.shortCommit}`;
+  console.error("✗ HEAD is not tagged.");
+  console.error("  Releases should target a version tag. Either:");
+  console.error("    • run `pnpm release patch|minor|major` to bump + tag, then this script, or");
+  console.error("    • pass an explicit tag: `pnpm release:publish --tag vX.Y.Z`");
+  process.exit(1);
 }
 
 function renderReleaseNotes({ cid, contenthashHex, resolver, manifest }) {
@@ -161,7 +161,7 @@ async function publish() {
   }
   console.log("  ✓ On-chain CID matches the local build.");
 
-  const tag = args.tag || defaultTag(manifest);
+  const tag = resolveTag(manifest, args.tag);
   const title = `localsafe.eth ${tag}`;
   const notes = renderReleaseNotes({
     cid: expectedCid,
@@ -182,7 +182,7 @@ async function publish() {
   const notesPath = path.join(os.tmpdir(), `localsafe-release-notes-${Date.now()}.md`);
   fs.writeFileSync(notesPath, notes);
 
-  console.log("Creating GitHub release (draft)...");
+  console.log("Creating GitHub release...");
   try {
     const out = execFileSync(
       "gh",
@@ -198,7 +198,6 @@ async function publish() {
         title,
         "--notes-file",
         notesPath,
-        "--draft",
       ],
       { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] },
     );
@@ -210,8 +209,6 @@ async function publish() {
   } finally {
     fs.unlinkSync(notesPath);
   }
-
-  console.log("\nReview the draft on GitHub, then click 'Publish release' to make it public.");
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
