@@ -30,13 +30,27 @@ function ensureGhCli() {
   }
 }
 
+const BUMP_WORDS = new Set(["patch", "minor", "major", "prepatch", "preminor", "premajor", "prerelease"]);
+
 function parseArgs(argv) {
   const args = { tag: null };
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === "--tag" && argv[i + 1]) {
+    const a = argv[i];
+    if (a === "--tag" && argv[i + 1]) {
       args.tag = argv[i + 1];
       i++;
+      continue;
     }
+    if (BUMP_WORDS.has(a)) {
+      console.error(`✗ "${a}" is not a publish argument.`);
+      console.error("  Version bumps happen at build time, not publish time —");
+      console.error("  the version is baked into the bundle that was pinned.");
+      console.error(`  Use \`pnpm release ${a}\` for the full bump → build → pin → tx flow,`);
+      console.error("  or pass `--tag vX.Y.Z` to publish at an explicit tag.");
+      process.exit(1);
+    }
+    console.error(`✗ Unknown argument: "${a}". Supported: --tag vX.Y.Z`);
+    process.exit(1);
   }
   return args;
 }
@@ -162,7 +176,7 @@ async function publish() {
   console.log("  ✓ On-chain CID matches the local build.");
 
   const tag = resolveTag(manifest, args.tag);
-  const title = `localsafe.eth ${tag}`;
+  const title = tag.replace(/^v/, "");
   const notes = renderReleaseNotes({
     cid: expectedCid,
     contenthashHex,
