@@ -1,11 +1,9 @@
+# Manual-only IPFS pin. The canonical release flow lives in `release/`
+# (`pnpm release` from your terminal). This workflow exists only as a break-glass
+# option to re-pin from CI via Actions → Run workflow.
 name: Build and Deploy to IPFS
 
 on:
-  release:
-    types: [published]
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -22,8 +20,7 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v2
-        with:
-          version: 9
+        # version is read from the `packageManager` field in package.json
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

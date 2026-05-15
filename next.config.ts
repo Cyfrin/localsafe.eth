@@ -14,6 +14,9 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Honor NEXT_BUILD_ID when set so release builds are reproducible from a
+  // commit (release/build.mjs passes the git SHA). Default behavior otherwise.
+  generateBuildId: process.env.NEXT_BUILD_ID ? async () => process.env.NEXT_BUILD_ID as string : undefined,
 };
 
 export default nextConfig;

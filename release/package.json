@@ -1,0 +1,21 @@
+{
+  "name": "localsafe-release",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Local release tooling for localsafe.eth: build, pin to IPFS, propose Safe transaction, publish GitHub release.",
+  "scripts": {
+    "release": "node release.mjs",
+    "build": "node build.mjs",
+    "pin": "node pin.mjs",
+    "tx": "node tx.mjs",
+    "release:publish": "node publish.mjs",
+    "verify": "node verify.mjs"
+  },
+  "dependencies": {
+    "blockstore-core": "6.1.3",
+    "ipfs-unixfs-importer": "16.1.5",
+    "multiformats": "13.4.2",
+    "viem": "2.48.11"
+  }
+}
