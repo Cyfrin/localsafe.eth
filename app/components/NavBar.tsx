@@ -94,17 +94,8 @@ export default function NavBar() {
           to="/accounts"
           className="border-base-content hover:bg-base-200 flex items-center gap-3 border-r-2 px-4 transition-colors sm:px-6"
         >
-          <Image
-            src={localsafeLogo}
-            alt=""
-            width={28}
-            height={28}
-            priority
-            className="logo-invert"
-          />
-          <span className="font-mono text-sm font-bold tracking-[0.06em] sm:text-base">
-            localsafe.eth
-          </span>
+          <Image src={localsafeLogo} alt="" width={28} height={28} priority className="logo-invert" />
+          <span className="font-mono text-sm font-bold tracking-[0.06em] sm:text-base">localsafe.eth</span>
         </Link>
       </div>
       <div className="flex items-stretch">

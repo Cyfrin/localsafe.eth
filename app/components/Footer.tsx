@@ -28,13 +28,9 @@ export default function Footer() {
           href="https://www.cyfrin.io/"
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:translate-x-[1px] transition-opacity hover:opacity-80"
+          className="transition-opacity hover:translate-x-[1px] hover:opacity-80"
         >
-          <Image
-            src={isDarkMode ? poweredByCyfrinBright : poweredByCyfrinDark}
-            alt="Powered by Cyfrin"
-            height={28}
-          />
+          <Image src={isDarkMode ? poweredByCyfrinBright : poweredByCyfrinDark} alt="Powered by Cyfrin" height={28} />
         </a>
 
         <a
