@@ -4,8 +4,11 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { usePublicClient } from "wagmi";
 import { formatUnits } from "viem";
 import { fetchTokenPrice } from "@/app/utils/coingecko";
+import { fetchOctavPortfolio, octavKeyForChain, type OctavPortfolio } from "@/app/utils/octav";
 import { getCoinGeckoApiKey } from "./ApiKeyModal";
 import ApiKeyModal from "./ApiKeyModal";
+import OctavApiKeyModal, { getOctavApiKey } from "./OctavApiKeyModal";
+import OctavPortfolioPanel from "./OctavPortfolioPanel";
 import TokenTransferModal from "./TokenTransferModal";
 import AddressInput from "./AddressInput";
 
@@ -74,7 +77,13 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
   const [showJsonEditor, setShowJsonEditor] = useState(false);
   const [jsonEditorValue, setJsonEditorValue] = useState("");
   const [jsonEditorError, setJsonEditorError] = useState<string | null>(null);
+  const [showOctavModal, setShowOctavModal] = useState(false);
+  const [octavDiscovering, setOctavDiscovering] = useState(false);
+  const [octavMessage, setOctavMessage] = useState<string | null>(null);
+  const [octavPortfolio, setOctavPortfolio] = useState<OctavPortfolio | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const octavSupportsChain = octavKeyForChain(chainId) !== null;
 
   const STORAGE_KEY = `token-balances-${safeAddress}-${chainId}`;
 
@@ -244,6 +253,72 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
     }
   }
 
+  // Enrich the Safe view with Octav. Fetches both:
+  //   1. the structured portfolio (DeFi protocol positions, networth,
+  //      chain breakdown) for the Octav panel that mounts above this table
+  //   2. the flat wallet-token list that merges into the existing Tokens
+  //      table so the Transfer + on-chain refresh flow keeps working
+  // Opens the API-key modal if no key is configured.
+  async function handleOctavDiscover() {
+    setError(null);
+    setOctavMessage(null);
+    const apiKey = getOctavApiKey();
+    if (!apiKey) {
+      setShowOctavModal(true);
+      return;
+    }
+    if (!octavSupportsChain) {
+      setError(`Octav doesn't support chainId ${chainId} yet.`);
+      return;
+    }
+    setOctavDiscovering(true);
+    try {
+      const portfolio = await fetchOctavPortfolio(safeAddress, chainId, apiKey);
+      setOctavPortfolio(portfolio);
+      const discovered = portfolio.walletTokens;
+
+      // Merge token metadata (skip anything we're already tracking).
+      const existingAddrs = new Set(tokens.map((t) => t.address.toLowerCase()));
+      const newTokens: TokenInfo[] = discovered
+        .filter((d) => !existingAddrs.has(d.address.toLowerCase()))
+        .map((d) => ({
+          address: d.address,
+          symbol: d.symbol,
+          decimals: d.decimals,
+          name: d.name,
+        }));
+      if (newTokens.length > 0) {
+        setTokens([...tokens, ...newTokens]);
+      }
+
+      // Seed balances + USD values directly from Octav so the table populates
+      // without waiting for on-chain reads or a CoinGecko fetch.
+      const byAddr = new Map(discovered.map((d) => [d.address.toLowerCase(), d]));
+      const merged: TokenBalance[] = [...tokens, ...newTokens].map((t) => {
+        const d = byAddr.get(t.address.toLowerCase());
+        if (d) {
+          return { ...t, balance: d.balance, usdPrice: d.usdPrice, usdValue: d.usdValue };
+        }
+        // Preserve whatever the previous render had for tokens Octav didn't
+        // know about so existing rows don't blank out.
+        const prev = balances.find((b) => b.address.toLowerCase() === t.address.toLowerCase());
+        return prev ?? { ...t, balance: "0" };
+      });
+      setBalances(merged);
+
+      const protoCount = portfolio.protocols.length;
+      setOctavMessage(
+        `Enriched: ${discovered.length} wallet token${discovered.length === 1 ? "" : "s"}` +
+          (protoCount > 0 ? `, ${protoCount} protocol position${protoCount === 1 ? "" : "s"}` : "") +
+          `. Networth $${portfolio.networth.toLocaleString(undefined, { maximumFractionDigits: 2 })}.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Octav portfolio fetch failed");
+    } finally {
+      setOctavDiscovering(false);
+    }
+  }
+
   // Remove token
   function handleRemoveToken(address: string) {
     setTokens(tokens.filter((t) => t.address !== address));
@@ -333,6 +408,12 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
         Assets
       </div>
 
+      {/* Octav-derived portfolio panel — shows DeFi protocol positions,
+       *  networth, and chain breakdown. Hidden until the user runs
+       *  "Enrich with Octav". Wallet tokens still render in the table
+       *  below so the existing Transfer + refresh flow stays intact. */}
+      {octavPortfolio && <OctavPortfolioPanel portfolio={octavPortfolio} onDismiss={() => setOctavPortfolio(null)} />}
+
       {/* Header with actions */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-baseline gap-4">
@@ -358,6 +439,16 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
           >
             ⚙️ API
           </button>
+          {octavSupportsChain && (
+            <div
+              className="tooltip"
+              data-tip={getOctavApiKey() ? "Pull tokens + DeFi positions via Octav" : "Configure Octav API Key"}
+            >
+              <button className="btn btn-outline btn-sm" onClick={handleOctavDiscover} disabled={octavDiscovering}>
+                {octavDiscovering ? "⏳ Enriching…" : "✨ Enrich with Octav"}
+              </button>
+            </div>
+          )}
           {balances.length > 0 && (
             <div className="tooltip" data-tip="Refresh Prices">
               <button className="btn btn-ghost btn-sm" onClick={handleRefreshPrices} disabled={fetchingPrices}>
@@ -420,6 +511,16 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
               Add API Key
             </button>
           </span>
+        </div>
+      )}
+
+      {/* Octav auto-discover result banner */}
+      {octavMessage && (
+        <div className="alert alert-info mb-4 text-sm">
+          <span>{octavMessage}</span>
+          <button className="btn btn-ghost btn-xs" onClick={() => setOctavMessage(null)}>
+            ✕
+          </button>
         </div>
       )}
 
@@ -512,6 +613,19 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
           const apiKey = getCoinGeckoApiKey();
           if (apiKey && balances.length > 0) {
             fetchPrices(balances, apiKey);
+          }
+        }}
+      />
+
+      {/* Octav API Key Modal — opens automatically when the user clicks
+       *  "Auto-discover via Octav" without a key configured. Once saved,
+       *  immediately kick off discovery so the click feels seamless. */}
+      <OctavApiKeyModal
+        open={showOctavModal}
+        onClose={() => {
+          setShowOctavModal(false);
+          if (getOctavApiKey()) {
+            void handleOctavDiscover();
           }
         }}
       />

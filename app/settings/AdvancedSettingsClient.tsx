@@ -65,6 +65,11 @@ const KEY_CATALOG: KeyDescriptor[] = [
     description: "Optional CoinGecko API key for higher rate limits when fetching token prices.",
   },
   {
+    match: "octav-api-key",
+    category: "app",
+    description: "Optional Octav API key for one-call cross-chain token discovery + USD valuation.",
+  },
+  {
     match: "isdark",
     category: "app",
     description: "Theme preference: 'true' for dark, 'false' for light.",
