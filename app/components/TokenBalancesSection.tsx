@@ -6,11 +6,13 @@ import { formatUnits } from "viem";
 import { fetchTokenPrice } from "@/app/utils/coingecko";
 import { fetchOctavPortfolio, octavKeyForChain, type OctavPortfolio } from "@/app/utils/octav";
 import { getOctavEnabled, useOctavEnabled } from "@/app/utils/octav-enabled";
-import { tokenLogoUrl } from "@/app/utils/token-logos";
+import { ERC20_ABI } from "@/app/utils/erc20-abi";
 import ApiKeyModal, { getCoinGeckoApiKey, getOctavApiKey } from "./ApiKeyModal";
 import OctavPortfolioPanel from "./OctavPortfolioPanel";
 import TokenTransferModal from "./TokenTransferModal";
-import AddressInput from "./AddressInput";
+import TokensAddTokenForm from "./TokensAddTokenForm";
+import TokensTable from "./TokensTable";
+import TokensJsonEditorModal from "./TokensJsonEditorModal";
 
 interface TokenInfo {
   address: string;
@@ -29,37 +31,6 @@ interface TokenBalancesSectionProps {
   safeAddress: `0x${string}`;
   chainId: number;
 }
-
-const ERC20_ABI = [
-  {
-    constant: true,
-    inputs: [{ name: "_owner", type: "address" }],
-    name: "balanceOf",
-    outputs: [{ name: "balance", type: "uint256" }],
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "decimals",
-    outputs: [{ name: "", type: "uint8" }],
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "symbol",
-    outputs: [{ name: "", type: "string" }],
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "name",
-    outputs: [{ name: "", type: "string" }],
-    type: "function",
-  },
-] as const;
 
 export default function TokenBalancesSection({ safeAddress, chainId }: TokenBalancesSectionProps) {
   const publicClient = usePublicClient();
@@ -572,34 +543,21 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
         </div>
       </div>
 
-      {/* Add Token Form (collapsible) */}
       {showAddToken && (
-        <div className="bg-base-200 mb-4 rounded-lg p-4">
-          <div className="flex gap-2">
-            <AddressInput
-              value={newTokenInput}
-              onChange={setNewTokenInput}
-              onResolvedAddressChange={setNewTokenAddress}
-              placeholder="Token contract address (0x... or name.eth)"
-              className="flex-1 text-sm"
-            />
-            <button className="btn btn-primary btn-sm" onClick={handleAddToken} disabled={!newTokenAddress}>
-              Add
-            </button>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                setShowAddToken(false);
-                setNewTokenInput("");
-                setNewTokenAddress(undefined);
-                setError(null);
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-          {error && <div className="alert alert-error mt-2 text-sm">{error}</div>}
-        </div>
+        <TokensAddTokenForm
+          value={newTokenInput}
+          onChange={setNewTokenInput}
+          onResolvedAddressChange={setNewTokenAddress}
+          resolvedAddress={newTokenAddress}
+          onAdd={handleAddToken}
+          onCancel={() => {
+            setShowAddToken(false);
+            setNewTokenInput("");
+            setNewTokenAddress(undefined);
+            setError(null);
+          }}
+          error={error}
+        />
       )}
 
       {/* CoinGecko API key is OPTIONAL — the public keyless endpoint
@@ -627,101 +585,16 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
         </div>
       )}
 
-      {/* Token List Table */}
-      <div className="overflow-x-auto">
-        {loading ? (
-          <div className="p-8 text-center">
-            <span className="loading loading-spinner loading-lg"></span>
-          </div>
-        ) : balances.length === 0 && tokens.length === 0 ? (
-          <div className="bg-base-200 rounded-box p-8 text-center text-gray-400">
-            No tokens added. Click &quot;+ Add Token&quot; to track token balances.
-          </div>
-        ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Asset</th>
-                <th>Price</th>
-                <th>Balance</th>
-                <th>Value</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {balances.map((token) => (
-                <tr key={token.address} className="group hover:bg-base-200">
-                  <td>
-                    <div className="flex items-center gap-3">
-                      {/* Token logo via logo.octav.fi — keyless, CORS-enabled,
-                       *  CDN-cached. onError hides broken icons so the row
-                       *  doesn't show a busted-image placeholder when a
-                       *  logo isn't indexed yet. */}
-                      <img
-                        src={tokenLogoUrl(token.address)}
-                        alt=""
-                        aria-hidden="true"
-                        className="h-7 w-7 rounded-full"
-                        loading="lazy"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).style.display = "none";
-                        }}
-                      />
-                      <div>
-                        <div className="font-semibold">{token.symbol}</div>
-                        <div className="text-xs opacity-60">{token.name}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="font-mono text-sm">
-                    {token.usdPrice
-                      ? `$${token.usdPrice.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}`
-                      : "-"}
-                  </td>
-                  <td className="font-mono text-sm">
-                    {parseFloat(token.balance).toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 4,
-                    })}{" "}
-                    {token.symbol}
-                  </td>
-                  <td className="font-mono text-sm font-semibold">
-                    {token.usdValue
-                      ? `$${token.usdValue.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}`
-                      : "-"}
-                  </td>
-                  <td>
-                    <div className="flex gap-1">
-                      <button
-                        className="btn btn-primary btn-xs opacity-0 transition-opacity group-hover:opacity-100"
-                        onClick={() => {
-                          setSelectedToken(token);
-                          setShowTransferModal(true);
-                        }}
-                      >
-                        Transfer
-                      </button>
-                      <button
-                        className="btn btn-ghost btn-xs"
-                        onClick={() => handleRemoveToken(token.address)}
-                        title="Remove token"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <TokensTable
+        balances={balances}
+        loading={loading}
+        hasTokens={tokens.length > 0}
+        onTransfer={(row) => {
+          setSelectedToken(row as TokenBalance);
+          setShowTransferModal(true);
+        }}
+        onRemove={handleRemoveToken}
+      />
 
       {/* Octav-derived DeFi positions panel — renders BELOW the Tokens
        *  table so wallet holdings come first, then non-wallet protocol
@@ -776,66 +649,14 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
         />
       )}
 
-      {/* JSON Editor Modal */}
-      {showJsonEditor && (
-        <div className="modal modal-open">
-          <div className="modal-box max-w-4xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold">Edit Token List (JSON)</h3>
-              <button className="btn btn-ghost btn-sm btn-circle" onClick={() => setShowJsonEditor(false)}>
-                ✕
-              </button>
-            </div>
-
-            <div className="alert alert-info mb-4">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                className="h-6 w-6 shrink-0 stroke-current"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                ></path>
-              </svg>
-              <div className="text-sm">
-                <p className="font-semibold">Token List Format</p>
-                <p>
-                  Each token must have: address (string), symbol (string), decimals (number), and optionally name
-                  (string)
-                </p>
-              </div>
-            </div>
-
-            <textarea
-              className="textarea textarea-bordered w-full font-mono text-sm"
-              rows={20}
-              value={jsonEditorValue}
-              onChange={(e) => setJsonEditorValue(e.target.value)}
-              placeholder='[\n  {\n    "address": "0x...",\n    "symbol": "USDT",\n    "decimals": 6,\n    "name": "Tether USD"\n  }\n]'
-            />
-
-            {jsonEditorError && (
-              <div className="alert alert-error mt-2">
-                <span>{jsonEditorError}</span>
-              </div>
-            )}
-
-            <div className="modal-action">
-              <button className="btn btn-ghost" onClick={() => setShowJsonEditor(false)}>
-                Cancel
-              </button>
-              <button className="btn btn-primary" onClick={handleSaveJsonEditor}>
-                Save Changes
-              </button>
-            </div>
-          </div>
-          <div className="modal-backdrop" onClick={() => setShowJsonEditor(false)}></div>
-        </div>
-      )}
+      <TokensJsonEditorModal
+        open={showJsonEditor}
+        value={jsonEditorValue}
+        onChange={setJsonEditorValue}
+        error={jsonEditorError}
+        onSave={handleSaveJsonEditor}
+        onClose={() => setShowJsonEditor(false)}
+      />
     </div>
   );
 }
