@@ -6,6 +6,7 @@ import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
 import { useToast } from "@/app/hooks/useToast";
 import { useConfirm } from "@/app/hooks/useToast";
+import { useOctavEnabled, setOctavEnabled } from "@/app/utils/octav-enabled";
 
 type Category = "app" | "cache" | "test" | "library";
 
@@ -14,6 +15,10 @@ interface KeyDescriptor {
   category: Category;
   description: string;
   requiresReload?: boolean;
+  /** Mark third-party credentials so the row hides the value behind a
+   *  reveal toggle. Surfaces shoulder-surf-safe defaults; the user can
+   *  click the eye to inspect. */
+  sensitive?: boolean;
 }
 
 interface StorageItem {
@@ -63,11 +68,18 @@ const KEY_CATALOG: KeyDescriptor[] = [
     match: "coingecko-api-key",
     category: "app",
     description: "Optional CoinGecko API key for higher rate limits when fetching token prices.",
+    sensitive: true,
   },
   {
     match: "octav-api-key",
     category: "app",
     description: "Optional Octav API key for one-call cross-chain token discovery + USD valuation.",
+    sensitive: true,
+  },
+  {
+    match: "octav-enabled",
+    category: "app",
+    description: "Set to 'false' to hide all Octav UI (discover button, portfolio panel, key field). Default on.",
   },
   {
     match: "isdark",
@@ -136,6 +148,7 @@ export default function AdvancedSettingsClient() {
   const navigate = useNavigate();
   const toast = useToast();
   const { confirm } = useConfirm();
+  const octavEnabled = useOctavEnabled();
 
   const [items, setItems] = useState<StorageItem[]>([]);
   const [editingKey, setEditingKey] = useState<string | null>(null);
@@ -359,6 +372,43 @@ export default function AdvancedSettingsClient() {
         </span>
       </div>
 
+      {/* App-level feature toggles. Lightweight surface separate from the
+       *  localStorage inspector below — these are user-facing preferences,
+       *  not key-by-key data. Add new toggles by appending another row. */}
+      <AppCard title="Features">
+        <div className="flex flex-col gap-4">
+          {/* Explicit `htmlFor`/`id` pairing so the short label name (`Octav
+           *  portfolio`) is the input's accessible name, with the longer
+           *  description attached separately via aria-describedby — screen
+           *  readers announce "Octav portfolio, switch, checked, …" then the
+           *  description, rather than running them together. */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 flex-col gap-1">
+              <label
+                htmlFor="toggle-octav-enabled"
+                className="cursor-pointer font-mono text-[12px] font-bold tracking-[0.15em] uppercase"
+              >
+                Octav portfolio
+              </label>
+              <span id="toggle-octav-enabled-desc" className="text-sm opacity-70">
+                Show the Octav &quot;Enrich&quot; button, the cross-chain portfolio panel, and the Octav API key field
+                in settings. Disabling hides all three; your stored key is preserved.
+              </span>
+            </div>
+            <input
+              id="toggle-octav-enabled"
+              type="checkbox"
+              role="switch"
+              aria-describedby="toggle-octav-enabled-desc"
+              data-testid="toggle-octav-enabled"
+              className="toggle toggle-primary shrink-0"
+              checked={octavEnabled}
+              onChange={(e) => setOctavEnabled(e.target.checked)}
+            />
+          </div>
+        </div>
+      </AppCard>
+
       <AppCard title="Advanced settings">
         <div className="flex flex-col gap-6">
           {/* Hazard notice */}
@@ -531,6 +581,46 @@ interface RowProps {
   onDelete: () => void;
 }
 
+/** Replace a credential with bullets while preserving its length, so the
+ *  layout doesn't jump when toggling reveal. Long secrets cap at 64 dots
+ *  to keep the row from stretching forever. */
+function maskValue(v: string): string {
+  const len = Math.min(v.length, 64);
+  return "•".repeat(len);
+}
+
+/** Inline eye / eye-slash glyph — kept as a single SVG component so the
+ *  reveal button matches the brutalist text-button visual weight without
+ *  pulling in an icon library. */
+function EyeSvg({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="square"
+      aria-hidden="true"
+    >
+      {open ? (
+        <>
+          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" />
+          <circle cx="12" cy="12" r="3" />
+        </>
+      ) : (
+        <>
+          <path d="M17.94 17.94A10.6 10.6 0 0 1 12 19c-7 0-11-7-11-7a18 18 0 0 1 4.06-4.94" />
+          <path d="M9.9 4.24A9.6 9.6 0 0 1 12 4c7 0 11 7 11 7a18 18 0 0 1-3.16 4.19" />
+          <path d="M9.88 9.88a3 3 0 0 0 4.24 4.24" />
+          <path d="M1 1l22 22" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 function StorageItemRow({
   item,
   isEditing,
@@ -541,6 +631,16 @@ function StorageItemRow({
   onSave,
   onDelete,
 }: RowProps) {
+  const sensitive = Boolean(item.descriptor.sensitive);
+  // Default to hidden for sensitive entries; non-sensitive rows ignore this.
+  const [revealed, setRevealed] = useState(false);
+  const displayedValue =
+    sensitive && !revealed && !item.isJson
+      ? maskValue(item.value)
+      : item.isJson
+        ? JSON.stringify(item.parsed, null, 2)
+        : item.value;
+
   return (
     <div className="surface flex flex-col gap-3 p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -549,12 +649,24 @@ function StorageItemRow({
             <code className="font-mono text-[13px] font-bold break-all">{item.key}</code>
             {item.descriptor.requiresReload && <span className="status-pill status-pill--warn">requires reload</span>}
             {!item.isJson && <span className="status-pill">plain text</span>}
+            {sensitive && <span className="status-pill status-pill--warn">sensitive</span>}
           </div>
           <p className="mt-1 font-mono text-[11px] leading-relaxed opacity-70">{item.descriptor.description}</p>
         </div>
         <div className="flex shrink-0 gap-1">
           {!isEditing ? (
             <>
+              {sensitive && (
+                <button
+                  className="border-base-content hover:bg-base-200 flex items-center gap-1 border-2 px-2 py-1 font-mono text-[10px] font-bold tracking-[0.15em] uppercase transition-colors"
+                  onClick={() => setRevealed((v) => !v)}
+                  aria-label={revealed ? "Hide value" : "Reveal value"}
+                  aria-pressed={revealed}
+                >
+                  <EyeSvg open={revealed} />
+                  {revealed ? "hide" : "show"}
+                </button>
+              )}
               <button
                 className="border-base-content hover:bg-base-200 border-2 px-2 py-1 font-mono text-[10px] font-bold tracking-[0.15em] uppercase transition-colors"
                 onClick={onEdit}
@@ -597,7 +709,7 @@ function StorageItemRow({
         />
       ) : (
         <pre className="bg-base-200 border-base-content/30 max-h-64 overflow-x-auto overflow-y-auto border p-3 font-mono text-[11px] leading-relaxed">
-          {item.isJson ? JSON.stringify(item.parsed, null, 2) : item.value}
+          {displayedValue}
         </pre>
       )}
 

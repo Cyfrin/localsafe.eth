@@ -91,17 +91,23 @@ function setCachedPrice(cacheKey: string, price: number): void {
 }
 
 /**
- * Fetch token price from CoinGecko API by contract address
+ * Fetch token price from CoinGecko API by contract address.
+ *
+ * Works against the public keyless endpoint (rate-limited to ~30 calls/min
+ * per IP — see https://docs.coingecko.com/docs/keyless-public-api). When
+ * `apiKey` is provided we forward it as `x-cg-demo-api-key` to unlock the
+ * Demo plan's higher rate ceiling; absent or empty, we omit the header and
+ * fall through to the keyless tier.
  *
  * @param contractAddress - Token contract address
  * @param chainId - Chain ID
- * @param apiKey - CoinGecko API key
+ * @param apiKey - Optional CoinGecko Demo API key for higher rate limits
  * @returns USD price or null if not found
  */
 export async function fetchTokenPrice(
   contractAddress: string,
   chainId: number,
-  apiKey: string,
+  apiKey?: string,
 ): Promise<number | null> {
   // Check cache first
   const cacheKey = `${chainId}-${contractAddress.toLowerCase()}`;
@@ -120,13 +126,12 @@ export async function fetchTokenPrice(
 
   try {
     const url = `https://api.coingecko.com/api/v3/coins/${platform}/contract/${contractAddress.toLowerCase()}`;
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (apiKey && apiKey.trim()) {
+      headers["x-cg-demo-api-key"] = apiKey.trim();
+    }
 
-    const response = await fetch(url, {
-      headers: {
-        "x-cg-demo-api-key": apiKey,
-        Accept: "application/json",
-      },
-    });
+    const response = await fetch(url, { headers });
 
     if (!response.ok) {
       console.warn(`CoinGecko API error: ${response.status} for ${contractAddress}`);

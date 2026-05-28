@@ -49,6 +49,34 @@ export function octavKeyForChain(chainId: number): string | null {
   return CHAIN_ID_TO_OCTAV_KEY[chainId] ?? null;
 }
 
+/**
+ * Brand color per Octav `chainKey`, used to tint the panel's chain-filter
+ * boxes. Falls back to a neutral gray for any chain we haven't mapped.
+ */
+const CHAIN_COLORS: { [chainKey: string]: string } = {
+  ethereum: "#627EEA",
+  optimism: "#FF0420",
+  arbitrum: "#28A0F0",
+  base: "#0052FF",
+  polygon: "#8247E5",
+  "polygon-zkevm": "#8247E5",
+  bnb: "#F0B90B",
+  gnosis: "#04795B",
+  fantom: "#1969FF",
+  zksync: "#8C8DFC",
+  mantle: "#65B3AE",
+  celo: "#FCFF52",
+  avalanche: "#E84142",
+  linea: "#61DFFF",
+  scroll: "#EBC28E",
+  zora: "#2B5DF0",
+  aurora: "#70D44B",
+};
+
+export function chainColor(chainKey: string): string {
+  return CHAIN_COLORS[chainKey.toLowerCase()] ?? "#6B7280";
+}
+
 /** Tolerant numeric parser — Octav returns strings like `"5.5"`, `"0"`, or
  *  occasionally null. Returns 0 instead of NaN so totals stay arithmetic. */
 function num(v: unknown): number {
@@ -72,38 +100,73 @@ interface OctavAsset {
   imgLarge?: string;
 }
 
-interface OctavRawProtocolPosition {
-  assets?: OctavAsset[];
+/** Loose typing for Octav's response shape — assets show up in several
+ *  parallel bucket arrays (assets / rewardAssets / supplyAssets / …) and
+ *  position trees nest a level or two deeper than the docs sample, so we
+ *  traverse defensively rather than forcing a strict schema. */
+interface OctavRawPosition {
+  name?: string;
+  key?: string;
   value?: string;
-  // Some protocol shapes also return supplied / borrowed / rewards arrays.
-  // We keep these optional and fold them all into a flat `assets` list for
-  // display since the existing Tokens table is asset-centric.
-  supplied?: OctavAsset[];
-  borrowed?: OctavAsset[];
-  rewards?: OctavAsset[];
-  dexPair?: OctavAsset[];
+  totalValue?: string;
+  // Flat asset arrays at this level. Real-world responses use these exact
+  // names — see Beefy `YIELD.protocolPositions[].assets` + Pendle V2
+  // `LIQUIDITYPOOL.protocolPositions[].rewardAssets` for proof.
+  assets?: OctavAsset[];
+  rewardAssets?: OctavAsset[];
+  supplyAssets?: OctavAsset[];
+  borrowAssets?: OctavAsset[];
+  dexAssets?: OctavAsset[];
+  marginAssets?: OctavAsset[];
+  baseAssets?: OctavAsset[];
+  quoteAssets?: OctavAsset[];
+  collateralizeNFTAssets?: OctavAsset[];
+  // Per-instance position metadata (Beefy vault, Pendle LP, IPOR vault, …).
+  poolAddress?: string;
+  vaultAddress?: string;
+  siteUrl?: string;
+  // Nested positions — array of per-instance positions. Older docs showed
+  // a keyed-map shape too, kept for forward-compat.
+  protocolPositions?: OctavRawPosition[] | { [k: string]: OctavRawPosition };
 }
 
 interface OctavRawChain {
   key?: string;
   name?: string;
   value?: string;
-  protocolPositions?: { [positionType: string]: OctavRawProtocolPosition };
+  totalValue?: string;
+  imgSmall?: string;
+  protocolPositions?: { [positionType: string]: OctavRawPosition };
 }
 
 interface OctavRawProtocol {
   key?: string;
   name?: string;
   value?: string;
+  totalValue?: string;
   imgSmall?: string;
   imgLarge?: string;
   chains?: { [chainKey: string]: OctavRawChain };
 }
 
+/** Top-level summary chain entry (next to assetByProtocols). Already
+ *  pre-aggregated so we don't have to sum per-protocol contributions
+ *  ourselves. */
+interface OctavRawSummaryChain {
+  key?: string;
+  name?: string;
+  chainId?: string;
+  value?: string;
+  imgSmall?: string;
+}
+
 interface OctavPortfolioResponse {
   address?: string;
   networth?: string;
+  netWorth?: string;
+  totalValue?: string;
   assetByProtocols?: { [protocol: string]: OctavRawProtocol };
+  chains?: { [chainKey: string]: OctavRawSummaryChain };
 }
 
 /** Slim, UI-ready token row used by the Tokens table merge and inside
@@ -119,13 +182,29 @@ export interface OctavDiscoveredToken {
   imgSmall?: string;
 }
 
-/** One position bucket inside a protocol (lending supplied, LP, claimable
- *  rewards, etc.). `positionType` is upstream's key — e.g. `WALLET`,
- *  `LENDING`, `STAKING`, `LP`, `BORROWING`, `CLAIMABLE_REWARDS`. */
+/** One concrete position inside a protocol — e.g. a single Beefy vault, a
+ *  single Pendle LP, a single Aave reserve. Replaces the older "bucket"
+ *  shape so multiple instances under the same `positionType` (e.g. two
+ *  MSETH/WETH vaults under YIELD) render as distinct rows with their own
+ *  names + pool addresses, mirroring Octav's own UI. */
 export interface OctavPosition {
+  /** Display name from upstream (LP pair like "MSETH / WETH", vault name
+   *  like "rETH Liquity LP Carry", etc.). Falls back to a humanized
+   *  `positionType` when Octav doesn't supply one (e.g. WALLET). */
+  name: string;
+  /** Upstream position-type bucket. Used for action-chip derivation and
+   *  as a fallback label. */
   positionType: string;
   value: number;
+  /** Principal tokens for the position (LP underlying, lending supplied,
+   *  vault deposits, plain wallet holdings). */
   assets: OctavDiscoveredToken[];
+  /** Claimable rewards/incentives — broken out separately so the UI can
+   *  label them ("Rewards: 0.76 PENDLE = $1.24"). */
+  rewardAssets: OctavDiscoveredToken[];
+  poolAddress?: string;
+  vaultAddress?: string;
+  siteUrl?: string;
 }
 
 export interface OctavProtocolChain {
@@ -156,8 +235,9 @@ export interface OctavPortfolio {
   chainSummary: OctavChainSummary[];
   /** Free-floating wallet tokens on the requested chain. */
   walletTokens: OctavDiscoveredToken[];
-  /** Non-wallet protocol positions (Aave, Beefy, Pendle, etc.) on the
-   *  requested chain. Empty array when nothing was found. */
+  /** Non-wallet protocol positions (Aave, Beefy, Pendle, etc.) across ALL
+   *  chains the Safe holds value on — the panel filters these by chain.
+   *  Empty array when nothing was found. */
   protocols: OctavProtocolGroup[];
   /** Raw upstream response — handed back so the UI can offer a debug
    *  inspector and downstream callers can read fields we haven't typed. */
@@ -183,12 +263,22 @@ function normalizeAsset(a: OctavAsset): OctavDiscoveredToken | null {
   };
 }
 
-function collectPositionAssets(p: OctavRawProtocolPosition): OctavDiscoveredToken[] {
-  // Some protocol responses split rows into supplied/borrowed/rewards/LP
-  // arrays instead of (or in addition to) the canonical `assets`. Fold
-  // everything into one list so the panel can render uniformly.
-  const buckets = [p.assets, p.supplied, p.borrowed, p.rewards, p.dexPair];
+/** Collect only the principal-asset buckets from one position node — does
+ *  NOT include rewards (those get pulled separately so the UI can label
+ *  them). Doesn't recurse into nested positions either; the parser walks
+ *  those itself to preserve per-position grouping. */
+function collectPrincipalAssets(p: OctavRawPosition): OctavDiscoveredToken[] {
   const out: OctavDiscoveredToken[] = [];
+  const buckets = [
+    p.assets,
+    p.supplyAssets,
+    p.borrowAssets,
+    p.dexAssets,
+    p.marginAssets,
+    p.baseAssets,
+    p.quoteAssets,
+    p.collateralizeNFTAssets,
+  ];
   for (const bucket of buckets) {
     if (!bucket) continue;
     for (const a of bucket) {
@@ -197,6 +287,48 @@ function collectPositionAssets(p: OctavRawProtocolPosition): OctavDiscoveredToke
     }
   }
   return out;
+}
+
+function collectRewardAssets(p: OctavRawPosition): OctavDiscoveredToken[] {
+  if (!p.rewardAssets) return [];
+  return p.rewardAssets.map(normalizeAsset).filter((x): x is OctavDiscoveredToken => x !== null);
+}
+
+function humanizePositionType(t: string): string {
+  return t.replaceAll("_", " ").toLowerCase();
+}
+
+/** Convert one nested `protocolPositions[i]` entry into our normalized
+ *  `OctavPosition`. Drops the row entirely if it has no assets and no
+ *  declared USD value (avoids ghost rows from sparse protocols). */
+function buildPosition(raw: OctavRawPosition, positionType: string, fallbackName: string): OctavPosition | null {
+  const principalAssets = collectPrincipalAssets(raw).filter((a) => a.address.toLowerCase() !== ZERO_ADDRESS);
+  const rewardAssets = collectRewardAssets(raw).filter((a) => a.address.toLowerCase() !== ZERO_ADDRESS);
+
+  const declared = pickValue(raw);
+  const sumAssets = principalAssets.reduce((s, a) => s + (a.usdValue ?? 0), 0);
+  const sumRewards = rewardAssets.reduce((s, a) => s + (a.usdValue ?? 0), 0);
+  const value = declared || sumAssets + sumRewards;
+
+  if (principalAssets.length === 0 && rewardAssets.length === 0 && value <= 0) return null;
+
+  return {
+    name: raw.name?.trim() || fallbackName,
+    positionType,
+    value,
+    assets: principalAssets,
+    rewardAssets,
+    poolAddress: raw.poolAddress || undefined,
+    vaultAddress: raw.vaultAddress || undefined,
+    siteUrl: raw.siteUrl || undefined,
+  };
+}
+
+/** Octav uses `value` on some shapes and `totalValue` on others; both are
+ *  USD strings. Pick whichever is present. */
+function pickValue(o: { value?: string; totalValue?: string } | undefined): number {
+  if (!o) return 0;
+  return num(o.totalValue ?? o.value);
 }
 
 /**
@@ -234,49 +366,75 @@ export async function fetchOctavPortfolio(
     throw new Error(`Octav HTTP ${res.status}: ${body.slice(0, 200) || res.statusText}`);
   }
 
-  const json = (await res.json()) as OctavPortfolioResponse;
-  if (debug) console.log("[octav] response", json);
+  const parsed = await res.json();
+  if (debug) console.log("[octav] response", parsed);
 
-  const networth = num(json.networth);
+  // Octav returns a one-element ARRAY at the top level — unwrap it.
+  // Tolerate the documented object shape too so we don't break if they
+  // ever change posture.
+  const json: OctavPortfolioResponse = (Array.isArray(parsed) ? parsed[0] : parsed) ?? {};
+
+  // Top-level networth — field name has appeared as `networth`, `netWorth`,
+  // and `totalValue` across response variants.
+  let networth = num(json.networth ?? json.netWorth ?? json.totalValue);
+
   const walletTokens: OctavDiscoveredToken[] = [];
   const protocols: OctavProtocolGroup[] = [];
-  const chainTotals = new Map<string, { name: string; value: number }>();
+
+  // Prefer the pre-aggregated top-level `chains` map for the chain summary
+  // (saves us from accumulating per-protocol-per-chain values, which can
+  // double-count or undercount depending on how a protocol reports).
+  const chainSummary: OctavChainSummary[] = Object.entries(json.chains ?? {})
+    .map(([key, c]) => ({
+      chainKey: key,
+      chainName: c.name ?? key,
+      value: num(c.value),
+      share: 0, // filled below once networth is finalized
+    }))
+    .filter((c) => c.value > 0.01)
+    .sort((a, b) => b.value - a.value);
 
   for (const [protoKey, proto] of Object.entries(json.assetByProtocols ?? {})) {
     const protoName = proto.name ?? protoKey;
     const protoChains: OctavProtocolChain[] = [];
-    let protoTotalForChain = 0;
+    let protoTotal = 0;
 
+    // Parse positions across ALL chains so the panel's chain-filter can
+    // surface cross-chain positions. (The Tokens table stays connected-chain
+    // only — wallet-token extraction below is gated to `chainKey`.)
     for (const [cKey, chain] of Object.entries(proto.chains ?? {})) {
       const cName = chain.name ?? cKey;
-      const cValue = num(chain.value);
-
-      // Aggregate cross-chain totals for the chain-summary header (these
-      // include every protocol's contribution, mirroring `networth`).
-      const prev = chainTotals.get(cKey) ?? { name: cName, value: 0 };
-      chainTotals.set(cKey, { name: cName, value: prev.value + cValue });
-
-      if (cKey !== chainKey) continue;
+      const cValue = pickValue(chain);
 
       const positions: OctavPosition[] = [];
-      for (const [posType, pos] of Object.entries(chain.protocolPositions ?? {})) {
-        const assets = collectPositionAssets(pos)
-          .filter((a) => a.address.toLowerCase() !== ZERO_ADDRESS)
-          .filter((a) => a.symbol || a.name);
+      for (const [posType, wrapper] of Object.entries(chain.protocolPositions ?? {})) {
+        // Each `protocolPositions[posType]` entry can hold EITHER its own
+        // direct assets (WALLET-style — one logical position) OR a nested
+        // `protocolPositions[]` array where each entry is a real instance
+        // (Beefy vault, Pendle LP, IPOR vault…). Walk whichever applies.
+        const nested = Array.isArray(wrapper.protocolPositions) ? wrapper.protocolPositions : [];
 
-        if (assets.length === 0) continue;
-        const posValue = num(pos.value) || assets.reduce((s, a) => s + (a.usdValue ?? 0), 0);
-        positions.push({ positionType: posType, value: posValue, assets });
+        if (nested.length > 0) {
+          for (const inst of nested) {
+            const p = buildPosition(inst, posType, humanizePositionType(posType));
+            if (p) positions.push(p);
+          }
+        } else {
+          const p = buildPosition(wrapper, posType, wrapper.name?.trim() || humanizePositionType(posType));
+          if (p) positions.push(p);
+        }
 
-        // Wallet-protocol assets get a flat copy for the Tokens-table merge.
-        if (WALLET_PROTOCOL_KEYS.has(protoKey)) {
-          for (const a of assets) walletTokens.push(a);
+        // Wallet-protocol assets still get a flat copy for the Tokens-table
+        // merge. Pulled directly from the wrapper since WALLET never nests.
+        if (WALLET_PROTOCOL_KEYS.has(protoKey) && cKey === chainKey) {
+          const walletAssets = collectPrincipalAssets(wrapper).filter((a) => a.address.toLowerCase() !== ZERO_ADDRESS);
+          for (const a of walletAssets) walletTokens.push(a);
         }
       }
 
       if (positions.length > 0) {
         protoChains.push({ chainKey: cKey, chainName: cName, value: cValue, positions });
-        protoTotalForChain += cValue;
+        protoTotal += cValue || positions.reduce((s, p) => s + p.value, 0);
       }
     }
 
@@ -288,7 +446,7 @@ export async function fetchOctavPortfolio(
     protocols.push({
       key: protoKey,
       name: protoName,
-      value: protoTotalForChain,
+      value: protoTotal,
       imgSmall: proto.imgSmall,
       chains: protoChains,
     });
@@ -297,15 +455,15 @@ export async function fetchOctavPortfolio(
   // Sort protocols by value descending so high-value positions dominate.
   protocols.sort((a, b) => b.value - a.value);
 
-  const chainSummary: OctavChainSummary[] = Array.from(chainTotals.entries())
-    .map(([key, { name, value }]) => ({
-      chainKey: key,
-      chainName: name,
-      value,
-      share: networth > 0 ? value / networth : 0,
-    }))
-    .filter((c) => c.value > 0.01)
-    .sort((a, b) => b.value - a.value);
+  // Fall back to summing chain totals if the top-level networth field
+  // wasn't present — keeps the header from rendering $0 when the rest of
+  // the payload clearly has value.
+  if (networth <= 0) {
+    networth = chainSummary.reduce((s, c) => s + c.value, 0);
+  }
+  for (const c of chainSummary) {
+    c.share = networth > 0 ? c.value / networth : 0;
+  }
 
   return {
     networth,
