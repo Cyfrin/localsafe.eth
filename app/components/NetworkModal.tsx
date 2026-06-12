@@ -9,6 +9,9 @@ import { NetworkFormState } from "../utils/types";
 import XSymbolSvg from "../assets/svg/XSymbolSvg";
 import PenEditSvg from "../assets/svg/PenEditSvg";
 import type { Chain } from "viem";
+import MainnetRpcModal from "./MainnetRpcModal";
+import { useEnsAvailable } from "../hooks/useEnsAvailable";
+import { isMainnetRpcConfigured } from "../provider/WagmiConfigProvider";
 
 // Component to render chain icon with fallback
 const ChainIcon = ({ chain }: { chain: Chain }) => {
@@ -56,6 +59,9 @@ export default function NetworkModal({
   const { configChains, removeChainById, addOrUpdateChain } = useChainManager();
   const [showForm, setShowForm] = useState<null | "add" | "edit">(null);
   const [editChain, setEditChain] = useState<NetworkFormState | null>(null);
+  const [showRpcModal, setShowRpcModal] = useState(false);
+  const ensAvailable = useEnsAvailable();
+  const mainnetConfigured = isMainnetRpcConfigured(configChains);
 
   // Always pre-fill form when modal is opened and suggestedFormState is present
   useEffect(() => {
@@ -102,7 +108,15 @@ export default function NetworkModal({
       contracts.tokenCallbackHandler = { address: state.tokenCallbackHandlerAddress as `0x${string}` };
     }
 
+    // Preserve the icon of the chain being edited (form state doesn't carry it)
+    const existingIconUrl = (
+      configChains.find((chain) => chain.id === Number(state.id)) as Chain & {
+        iconUrl?: string;
+      }
+    )?.iconUrl;
+
     addOrUpdateChain({
+      ...(existingIconUrl && { iconUrl: existingIconUrl }),
       id: Number(state.id),
       name: state.name,
       rpcUrls: { default: { http: [state.rpcUrl] } },
@@ -138,6 +152,18 @@ export default function NetworkModal({
             <span className="text-xs text-gray-400 italic">
               Note: Adding a new network will take over any previously set custom network with the same Chain ID.
             </span>
+          </p>
+          <p className="mt-2 font-mono text-xs" data-testid="ens-status-line">
+            {ensAvailable ? (
+              <span className="opacity-60">
+                ens: on {mainnetConfigured ? "— custom mainnet rpc" : "— via connected wallet"}
+              </span>
+            ) : (
+              <span className="text-warning">ens: off — no mainnet rpc</span>
+            )}{" "}
+            <button className="link" onClick={() => setShowRpcModal(true)} data-testid="ens-status-edit">
+              {mainnetConfigured ? "edit" : "set rpc"}
+            </button>
           </p>
           <ul className="list bg-base-100 rounded-box max-h-64 overflow-y-auto shadow-md">
             <li className="p-4 pb-2 text-xs tracking-wide opacity-60">Your configured networks</li>
@@ -229,6 +255,7 @@ export default function NetworkModal({
           </div>
         </>
       )}
+      <MainnetRpcModal open={showRpcModal} onClose={() => setShowRpcModal(false)} />
     </Modal>
   );
 }

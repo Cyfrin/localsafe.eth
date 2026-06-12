@@ -1,7 +1,8 @@
 "use client";
 
 import { useEnsAddress } from "@/app/hooks/useEnsAddress";
-import { useEffect, useRef } from "react";
+import MainnetRpcModal from "@/app/components/MainnetRpcModal";
+import { useEffect, useRef, useState } from "react";
 
 interface AddressInputProps {
   /** The raw user input (may be ENS name or 0x address) */
@@ -35,6 +36,7 @@ export default function AddressInput({
   required = false,
 }: AddressInputProps) {
   const { address: resolvedAddress, isLoading: isResolvingEns, isEnsName, isEnsAvailable } = useEnsAddress(value);
+  const [showRpcModal, setShowRpcModal] = useState(false);
 
   // Compute the effective address
   const effectiveAddress = isEnsName ? resolvedAddress : ADDRESS_PATTERN.test(value) ? value : undefined;
@@ -62,9 +64,14 @@ export default function AddressInput({
       {isEnsName && (
         <label className="label">
           {!isEnsAvailable ? (
-            <span className="label-text-alt text-warning">
-              ENS unavailable — connect to mainnet or set a mainnet RPC in network settings
-            </span>
+            <button
+              type="button"
+              className="label-text-alt text-warning underline underline-offset-2"
+              onClick={() => setShowRpcModal(true)}
+              data-testid="ens-unavailable-link"
+            >
+              ENS unavailable — set mainnet RPC
+            </button>
           ) : isResolvingEns ? (
             <span className="label-text-alt flex items-center gap-2">
               <span className="loading loading-spinner loading-xs"></span>
@@ -79,6 +86,7 @@ export default function AddressInput({
           )}
         </label>
       )}
+      <MainnetRpcModal open={showRpcModal} onClose={() => setShowRpcModal(false)} />
     </div>
   );
 }
