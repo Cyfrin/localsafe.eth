@@ -12,6 +12,7 @@ import EIP712DataDisplay from "@/app/components/EIP712DataDisplay";
 import AddressInput from "@/app/components/AddressInput";
 import { useAccount, useChainId } from "wagmi";
 import { ethers } from "ethers";
+import { SafeSignature } from "@/app/vendor/safe";
 import type { SignClientTypes } from "@walletconnect/types";
 import {
   calculatePersonalSignHash,
@@ -163,7 +164,7 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
           // personal_sign params: [message, address]
           const hexMessage = signParams[0] as string;
 
-          // Decode the hex message to a string for Safe SDK
+          // Decode the hex message to a string for hashing/signing
           if (hexMessage.startsWith("0x")) {
             try {
               messageToSign = ethers.toUtf8String(hexMessage);
@@ -229,7 +230,7 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
       const newSignedMessage = await kit.signMessage(messageToSignWith);
 
       // Get the signature for this owner
-      const signerAddress = await kit.getSafeProvider().getSignerAddress();
+      const signerAddress = kit.getSignerAddress();
       if (!signerAddress) {
         throw new Error("No signer address available");
       }
@@ -342,11 +343,8 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
         return;
       }
 
-      // Import the EthSafeSignature class
-      const { EthSafeSignature } = await import("@safe-global/protocol-kit");
-
       // Add the signature to the message
-      const ethSignature = new EthSafeSignature(signerAddress, signatureData, false);
+      const ethSignature = new SafeSignature(signerAddress, signatureData, false);
       signedMessage.addSignature(ethSignature);
 
       // Save updated message

@@ -1,14 +1,14 @@
 "use client";
 
-import { EthSafeSignature, EthSafeMessage } from "@safe-global/protocol-kit";
+import { SafeSignature, SafeMessage } from "../vendor/safe";
 import React, { createContext, useContext, useEffect, useRef } from "react";
 
 const SAFE_MESSAGE_STORAGE_KEY = "safe-messages";
 
 export interface SafeMessageContextType {
-  saveMessage: (safeAddress: string, msgObj: EthSafeMessage, messageHash: string, chainId?: string) => void;
-  getMessage: (safeAddress: string, messageHash: string, chainId?: string) => EthSafeMessage | null;
-  getAllMessages: (safeAddress: string, chainId?: string) => EthSafeMessage[];
+  saveMessage: (safeAddress: string, msgObj: SafeMessage, messageHash: string, chainId?: string) => void;
+  getMessage: (safeAddress: string, messageHash: string, chainId?: string) => SafeMessage | null;
+  getAllMessages: (safeAddress: string, chainId?: string) => SafeMessage[];
   removeMessage: (safeAddress: string, messageHash: string, chainId?: string) => void;
 }
 
@@ -17,7 +17,7 @@ const SafeMessageContext = createContext<SafeMessageContextType | undefined>(und
 export const SafeMessageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // In-memory map of current messages per safeAddress
   const currentMsgMapRef = useRef<{
-    [safeAddress: string]: Array<{ message: EthSafeMessage; hash: string }>;
+    [safeAddress: string]: Array<{ message: SafeMessage; hash: string }>;
   }>({});
 
   // Hydrate all messages from localStorage on mount
@@ -34,14 +34,14 @@ export const SafeMessageProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (rawMap) {
         const parsedMap: Record<string, StoredMsg[]> = JSON.parse(rawMap);
         Object.entries(parsedMap).forEach(([safeAddress, msgArray]) => {
-          const messages: Array<{ message: EthSafeMessage; hash: string }> = [];
+          const messages: Array<{ message: SafeMessage; hash: string }> = [];
           if (Array.isArray(msgArray)) {
             msgArray.forEach((parsed) => {
               if (parsed && typeof parsed === "object" && "data" in parsed && "hash" in parsed) {
-                const msgObj = new EthSafeMessage(parsed.data as any);
+                const msgObj = new SafeMessage(parsed.data as any);
                 if (parsed.signatures && Array.isArray(parsed.signatures)) {
                   parsed.signatures.forEach((sig: { signer: string; data: string; isContractSignature: boolean }) => {
-                    const ethSignature = new EthSafeSignature(sig.signer, sig.data, sig.isContractSignature);
+                    const ethSignature = new SafeSignature(sig.signer, sig.data, sig.isContractSignature);
                     msgObj.addSignature(ethSignature);
                   });
                 }
@@ -58,7 +58,7 @@ export const SafeMessageProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, []);
 
   // Add or update a message for a specific safeAddress and chainId
-  function saveMessage(safeAddress: string, msgObj: EthSafeMessage, messageHash: string, chainId?: string) {
+  function saveMessage(safeAddress: string, msgObj: SafeMessage, messageHash: string, chainId?: string) {
     const key = chainId ? `${safeAddress}-${chainId}` : safeAddress;
     const existingMsgs = currentMsgMapRef.current[key] || [];
 
@@ -78,7 +78,7 @@ export const SafeMessageProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }
 
   // Get a specific message by hash
-  function getMessage(safeAddress: string, messageHash: string, chainId?: string): EthSafeMessage | null {
+  function getMessage(safeAddress: string, messageHash: string, chainId?: string): SafeMessage | null {
     const key = chainId ? `${safeAddress}-${chainId}` : safeAddress;
     const messages = currentMsgMapRef.current[key] || [];
     const entry = messages.find((entry) => entry.hash === messageHash);
@@ -86,7 +86,7 @@ export const SafeMessageProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }
 
   // Get all messages for a specific safe
-  function getAllMessages(safeAddress: string, chainId?: string): EthSafeMessage[] {
+  function getAllMessages(safeAddress: string, chainId?: string): SafeMessage[] {
     const key = chainId ? `${safeAddress}-${chainId}` : safeAddress;
     const entries = currentMsgMapRef.current[key] || [];
     return entries.map((entry) => entry.message);

@@ -39,6 +39,16 @@ const anvilTwo = defineChain({
   testnet: true,
 });
 
+// BattleChain mainnet — not yet in viem/chains
+const battlechain = defineChain({
+  id: 626,
+  name: "BattleChain",
+  nativeCurrency: { decimals: 18, name: "Ether", symbol: "ETH" },
+  rpcUrls: {
+    default: { http: ["https://mainnet.battlechain.com"] },
+  },
+});
+
 // Extend Window interface for E2E testing utilities
 declare global {
   interface Window {
@@ -85,6 +95,7 @@ import avalancheIcon from "../assets/chainIcons/avalanche.svg";
 import celoIcon from "../assets/chainIcons/celo.svg";
 import mantleIcon from "../assets/chainIcons/mantle.svg";
 import storyIcon from "../assets/chainIcons/story.svg";
+import battlechainIcon from "../assets/chainIcons/battlechain.svg";
 import hardhatIcon from "../assets/chainIcons/hardhat.svg";
 
 // Helper to add icon URLs to chains
@@ -110,6 +121,7 @@ const withOptionalRpcOverride = (chain: Chain, envRpcUrl: string | undefined): C
 // All chains support RPC override via env vars for reliability and privacy
 const DEFAULT_CHAINS: Chain[] = [
   addChainIcon(withOptionalRpcOverride(mainnet, process.env.NEXT_PUBLIC_MAINNET_RPC_URL), ethereumIcon.src),
+  addChainIcon(withOptionalRpcOverride(battlechain, process.env.NEXT_PUBLIC_BATTLECHAIN_RPC_URL), battlechainIcon.src),
   addChainIcon(withOptionalRpcOverride(arbitrum, process.env.NEXT_PUBLIC_ARBITRUM_RPC_URL), arbitrumIcon.src),
   addChainIcon(withOptionalRpcOverride(optimism, process.env.NEXT_PUBLIC_OPTIMISM_RPC_URL), optimismIcon.src),
   addChainIcon(withOptionalRpcOverride(base, process.env.NEXT_PUBLIC_BASE_RPC_URL), baseIcon.src),
@@ -129,6 +141,30 @@ const DEFAULT_CHAINS: Chain[] = [
   addChainIcon(withOptionalRpcOverride(baseSepolia, process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL), baseIcon.src),
   addChainIcon(anvil, hardhatIcon.src), // Uses hardhat icon for local dev
 ];
+
+// One-time additive migrations for users with a persisted chain list: each step runs
+// exactly once, so removing a migrated-in chain afterwards still sticks.
+const CHAIN_LIST_MIGRATION_KEY = "MSIG_wagmiConfigNetworksMigration";
+const CHAIN_LIST_MIGRATION = 2; // 1: add battlechain (626); 2: battlechain icon
+
+function migrateStoredChains(stored: Chain[]): Chain[] {
+  const applied = Number(localStorage.getItem(CHAIN_LIST_MIGRATION_KEY) || "0");
+  if (applied >= CHAIN_LIST_MIGRATION) return stored;
+  localStorage.setItem(CHAIN_LIST_MIGRATION_KEY, String(CHAIN_LIST_MIGRATION));
+  const battlechainEntry = DEFAULT_CHAINS.find((chain) => chain.id === battlechain.id)!;
+  const migrated = [...stored];
+  if (applied < 1 && !migrated.some((chain) => chain.id === battlechain.id)) {
+    const mainnetIndex = migrated.findIndex((chain) => chain.id === mainnet.id);
+    migrated.splice(mainnetIndex + 1, 0, battlechainEntry);
+  }
+  if (applied < 2) {
+    const index = migrated.findIndex((chain) => chain.id === battlechain.id);
+    if (index !== -1 && !(migrated[index] as Chain & { iconUrl?: string }).iconUrl) {
+      migrated[index] = addChainIcon(migrated[index], battlechainIcon.src);
+    }
+  }
+  return migrated;
+}
 
 export interface WagmiConfigContextType {
   configChains: Chain[];
@@ -165,7 +201,7 @@ export const WagmiConfigProvider: React.FC<{
       const stored = localStorage.getItem(WAGMI_CONFIG_NETWORKS_KEY);
       if (stored) {
         try {
-          setConfigChains(JSON.parse(stored));
+          setConfigChains(migrateStoredChains(JSON.parse(stored)));
         } catch {
           setConfigChains(DEFAULT_CHAINS);
         }

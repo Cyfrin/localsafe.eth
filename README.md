@@ -283,7 +283,7 @@ To run your own local Safe contracts for development, follow these steps:
 
 ## References
 
-- [SafeSDK: Protocol Kit](https://docs.safe.global/sdk/protocol-kit)
+- [Safe smart account contracts](https://docs.safe.global/advanced/smart-account-overview) (Safe support is implemented locally in `app/vendor/safe/`)
 - [wagmi](https://wagmi.sh/)
 - [RainbowKit](https://www.rainbowkit.com/)
 - [WalletConnect](https://walletconnect.com/)

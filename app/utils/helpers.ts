@@ -24,7 +24,7 @@ export async function getMinimalEIP1193Provider(
 }
 
 /**
- * Create configuration object for Safe SDK and ProtocolKit.
+ * Create configuration objects for SafeAccount connections.
  *
  * @param provider - EIP-1193 provider
  * @param signer - Signer address
@@ -32,7 +32,7 @@ export async function getMinimalEIP1193Provider(
  * @param threshold - Number of required confirmations
  * @param saltNonce - Optional salt nonce for address prediction
  * @param contractNetworks - Optional contract networks configuration
- * @returns Configuration object for Safe SDK and ProtocolKit
+ * @returns Configuration object for SafeAccount.init
  */
 
 // Factory for prediction/deployment config

@@ -11,7 +11,7 @@ import { useNavigate } from "react-router-dom";
 import BtnCancel from "@/app/components/BtnCancel";
 import { AbiFunctionItem } from "@/app/utils/types";
 import { useSafeTxContext } from "@/app/provider/SafeTxProvider";
-import { EthSafeTransaction } from "@safe-global/protocol-kit";
+import { SafeTransaction } from "../../../vendor/safe";
 import { useAccount } from "wagmi";
 import { encodeCalldataFromAbi, getFunctionSignature } from "@/app/utils/abiEncoder";
 import { useToast } from "@/app/hooks/useToast";
@@ -192,7 +192,7 @@ export default function NewSafeTxClient({ safeAddress }: { safeAddress: `0x${str
     if (!safeInfo) return 0;
 
     // Find highest nonce in queue
-    const queuedNonces = queuedTransactions.map((tx: EthSafeTransaction) => Number(tx.data.nonce));
+    const queuedNonces = queuedTransactions.map((tx: SafeTransaction) => Number(tx.data.nonce));
     const highestQueued = queuedNonces.length > 0 ? Math.max(...queuedNonces) : safeInfo.nonce - 1;
 
     // Next available is highest queued + 1, or current Safe nonce if nothing queued
@@ -228,7 +228,7 @@ export default function NewSafeTxClient({ safeAddress }: { safeAddress: `0x${str
     }
 
     // Check if nonce is already in queue
-    const nonceInQueue = queuedTransactions.some((tx: EthSafeTransaction) => Number(tx.data.nonce) === nonce);
+    const nonceInQueue = queuedTransactions.some((tx: SafeTransaction) => Number(tx.data.nonce) === nonce);
     if (nonceInQueue) {
       setNonceWarning(`⚠️ A transaction with nonce ${nonce} is already queued. Building this will overwrite it.`);
       return;
@@ -318,7 +318,7 @@ export default function NewSafeTxClient({ safeAddress }: { safeAddress: `0x${str
   async function handleBuildSafeTransaction() {
     setError(null);
     try {
-      // Map transactions to ProtocolKit's SafeTransactionData format
+      // Map transactions to the SafeTransaction input format
       const txs = transactions.map((tx) => ({
         to: tx.to,
         value: tx.value,
@@ -333,7 +333,7 @@ export default function NewSafeTxClient({ safeAddress }: { safeAddress: `0x${str
         return;
       }
 
-      // Build transaction using ProtocolKit
+      // Build the Safe transaction
       const safeTx = await buildSafeTransaction(txs, nonce);
       if (!safeTx) {
         setError("Invalid transaction");

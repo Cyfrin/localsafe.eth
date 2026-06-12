@@ -6,7 +6,7 @@ import EIP712DataDisplay from "@/app/components/EIP712DataDisplay";
 import { useNavigate, Link } from "react-router-dom";
 import useSafe from "@/app/hooks/useSafe";
 import { useEffect, useState } from "react";
-import { EthSafeTransaction, EthSafeSignature } from "@safe-global/protocol-kit";
+import { SafeTransaction, SafeSignature } from "../../../../vendor/safe";
 import { useSafeTxContext } from "@/app/provider/SafeTxProvider";
 import DataPreview from "@/app/components/DataPreview";
 import { BroadcastModal } from "@/app/components/BroadcastModal";
@@ -65,7 +65,7 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
   const [showModal, setShowModal] = useState(false);
   const [broadcastHash, setBroadcastHash] = useState<string | null>(null);
   const [broadcastError, setBroadcastError] = useState<string | null>(null);
-  const [safeTx, setSafeTx] = useState<EthSafeTransaction | null>(null);
+  const [safeTx, setSafeTx] = useState<SafeTransaction | null>(null);
   const [signing, setSigning] = useState(false);
   const [broadcasting, setBroadcasting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -162,7 +162,7 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
         const allTxs = getAllTransactions(safeAddress, chainId);
 
         // Find the transaction matching this hash
-        let matchingTx: EthSafeTransaction | null = null;
+        let matchingTx: SafeTransaction | null = null;
         for (const tx of allTxs) {
           const hash = await kit.getTransactionHash(tx);
           if (hash === txHash) {
@@ -424,7 +424,7 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
       }
 
       // Create the signature object
-      const ethSignature = new EthSafeSignature(
+      const ethSignature = new SafeSignature(
         signerAddress,
         signatureData,
         false, // Assuming EOA signature, not contract signature
@@ -438,7 +438,7 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
       saveTransaction(safeAddress, safeTx, chainId);
 
       // Update local state - create fresh instance to trigger re-render
-      const updatedTx = new EthSafeTransaction(safeTx.data);
+      const updatedTx = new SafeTransaction(safeTx.data);
       if (safeTx.signatures) {
         safeTx.signatures.forEach((sig) => {
           updatedTx.addSignature(sig);
