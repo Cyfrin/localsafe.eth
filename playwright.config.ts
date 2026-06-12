@@ -8,6 +8,12 @@ import { defineConfig, devices } from "@playwright/test";
 // import path from 'path';
 // dotenv.config({ path: path.resolve(__dirname, '.env') });
 
+// ENS resolution only runs against an explicitly configured mainnet RPC (the app never
+// falls back to viem's bundled public endpoint). Point it at a mock-only URL so the dev
+// server enables ENS and tests/utils/ens-mock.ts intercepts every request to it. Set
+// before defineConfig so both the webServer child process and the test process see it.
+process.env.NEXT_PUBLIC_MAINNET_RPC_URL ||= "https://ens-mock.localsafe.test";
+
 /**
  * See https://playwright.dev/docs/test-configuration.
  */

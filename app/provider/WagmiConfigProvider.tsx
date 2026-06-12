@@ -142,6 +142,18 @@ const DEFAULT_CHAINS: Chain[] = [
   addChainIcon(anvil, hardhatIcon.src), // Uses hardhat icon for local dev
 ];
 
+// viem's bundled default mainnet RPC. The app never sends traffic there: mainnet
+// reads (ENS resolution) only happen through the connected wallet or an RPC the user
+// explicitly chose (env override or network settings).
+const VIEM_MAINNET_DEFAULT_RPC = mainnet.rpcUrls.default.http[0];
+
+/** Whether the user has explicitly chosen a mainnet RPC (env override or network settings). */
+export function isMainnetRpcConfigured(chains: Chain[]): boolean {
+  const mainnetChain = chains.find((chain) => chain.id === mainnet.id);
+  const rpcUrl = mainnetChain?.rpcUrls?.default?.http?.[0];
+  return !!rpcUrl && rpcUrl !== VIEM_MAINNET_DEFAULT_RPC;
+}
+
 // One-time additive migrations for users with a persisted chain list: each step runs
 // exactly once, so removing a migrated-in chain afterwards still sticks.
 const CHAIN_LIST_MIGRATION_KEY = "MSIG_wagmiConfigNetworksMigration";
@@ -225,10 +237,14 @@ export const WagmiConfigProvider: React.FC<{
 
     // Create transports object that uses wallet provider's RPC (EIP-1193)
     // This ensures we use the user's wallet RPC instead of public RPC endpoints
+    const mainnetConfigured = isMainnetRpcConfigured(configChains);
     const transports = configChains.reduce(
       (acc, chain) => {
-        // Fallback to public RPC if connector doesn't respond
-        acc[chain.id] = fallback([unstable_connector(injected), http()]);
+        // Fallback to the chain's RPC if the connector doesn't respond — except
+        // mainnet, where viem's bundled public RPC is never used implicitly: ENS
+        // reads go through the wallet or an RPC the user explicitly configured
+        const useHttpFallback = chain.id !== mainnet.id || mainnetConfigured;
+        acc[chain.id] = fallback([unstable_connector(injected), ...(useHttpFallback ? [http()] : [])]);
         return acc;
       },
       {} as Record<number, ReturnType<typeof fallback>>,
@@ -255,12 +271,14 @@ export const WagmiConfigProvider: React.FC<{
         const e2eChains = [...configChains, addChainIcon(anvilTwo, hardhatIcon.src)];
 
         // Build transports for E2E chains including anvilTwo
+        const e2eMainnetConfigured = isMainnetRpcConfigured(e2eChains);
         const e2eTransports = e2eChains.reduce(
           (acc, chain) => {
             if (chain.id === anvilTwo.id) {
               acc[chain.id] = fallback([http("http://127.0.0.1:8546")]);
             } else {
-              acc[chain.id] = fallback([unstable_connector(injected), http()]);
+              const useHttpFallback = chain.id !== mainnet.id || e2eMainnetConfigured;
+              acc[chain.id] = fallback([unstable_connector(injected), ...(useHttpFallback ? [http()] : [])]);
             }
             return acc;
           },
