@@ -1,8 +1,35 @@
 import React, { useEffect, useRef, useReducer, useState, memo, useMemo, useCallback } from "react";
 import { FormAction, NetworkFormState } from "../utils/types";
-import { sanitizeUserInput } from "../utils/helpers";
+import { sanitizeUserInput, isValidAddress } from "../utils/helpers";
 import { useChainManager } from "../hooks/useChainManager";
 import { NETWORK_FORM_DEFAULTS } from "../utils/constants";
+import { isOfficialDeployment } from "../vendor/safe";
+import type { ContractAddresses } from "../vendor/safe";
+
+/**
+ * Trust hint for a Safe contract address override: official deterministic deployments
+ * (and registered chain-specific suites like battlechain's) are trusted; anything else
+ * is flagged so signers know they are trusting a custom contract.
+ */
+function AddressTrustHint({
+  field,
+  value,
+  chainId,
+}: {
+  field: keyof ContractAddresses;
+  value?: string;
+  chainId?: number | string;
+}) {
+  if (!value || !isValidAddress(value)) return null;
+  if (isOfficialDeployment(field, value, chainId)) {
+    return <p className="mt-1 font-mono text-xs opacity-60">[trusted] known safe deployment</p>;
+  }
+  return (
+    <p className="text-warning mt-1 font-mono text-xs" data-testid={`untrusted-${field}`}>
+      [untrusted] not a known safe deployment — verify this contract before signing
+    </p>
+  );
+}
 
 export interface NetworkFormProps {
   setShowForm: React.Dispatch<React.SetStateAction<null | "add" | "edit">>;
@@ -366,7 +393,8 @@ export default function NetworkForm({ setShowForm, onSubmit, initialState, onCan
         <summary className="collapse-title text-sm font-medium">Advanced Settings (Optional)</summary>
         <div className="collapse-content space-y-4">
           <p className="mb-2 text-xs text-gray-400">
-            Configure Safe contract addresses for this network. Leave empty to use Safe SDK defaults.
+            Configure Safe contract addresses for this network. Leave empty to use the canonical Safe deployment
+            addresses.
           </p>
 
           <div className="divider text-xs">Core Contracts</div>
@@ -383,6 +411,11 @@ export default function NetworkForm({ setShowForm, onSubmit, initialState, onCan
             <label className="label">
               <span className="label-text-alt">Factory contract for deploying new Safe proxies</span>
             </label>
+            <AddressTrustHint
+              field="safeProxyFactoryAddress"
+              value={state.safeProxyFactoryAddress}
+              chainId={state.id}
+            />
           </fieldset>
 
           <fieldset className="fieldset">
@@ -397,6 +430,7 @@ export default function NetworkForm({ setShowForm, onSubmit, initialState, onCan
             <label className="label">
               <span className="label-text-alt">Master copy contract for Safe logic</span>
             </label>
+            <AddressTrustHint field="safeSingletonAddress" value={state.safeSingletonAddress} chainId={state.id} />
           </fieldset>
 
           <fieldset className="fieldset">
@@ -411,6 +445,7 @@ export default function NetworkForm({ setShowForm, onSubmit, initialState, onCan
             <label className="label">
               <span className="label-text-alt">Handler for fallback calls and message signatures</span>
             </label>
+            <AddressTrustHint field="fallbackHandlerAddress" value={state.fallbackHandlerAddress} chainId={state.id} />
           </fieldset>
 
           <div className="divider text-xs">Transaction Batching</div>
@@ -427,6 +462,7 @@ export default function NetworkForm({ setShowForm, onSubmit, initialState, onCan
             <label className="label">
               <span className="label-text-alt">Used for batching multiple transactions together</span>
             </label>
+            <AddressTrustHint field="multiSendAddress" value={state.multiSendAddress} chainId={state.id} />
           </fieldset>
 
           <fieldset className="fieldset">
@@ -441,6 +477,11 @@ export default function NetworkForm({ setShowForm, onSubmit, initialState, onCan
             <label className="label">
               <span className="label-text-alt">Used for call-only (no delegatecall) batched transactions</span>
             </label>
+            <AddressTrustHint
+              field="multiSendCallOnlyAddress"
+              value={state.multiSendCallOnlyAddress}
+              chainId={state.id}
+            />
           </fieldset>
         </div>
       </details>

@@ -119,7 +119,7 @@ export default function HomePageClient() {
             <span className="opacity-50">·</span> deterministic. static export, ipfs-pinnable.
           </li>
           <li>
-            <span className="opacity-50">·</span> open.{" "}
+            <span className="opacity-50">·</span> open{" "}
             <a
               href="https://github.com/Cyfrin/localsafe.eth"
               target="_blank"

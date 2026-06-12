@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback } from "react";
-import Safe, { SafeConfig } from "@safe-global/protocol-kit";
+import { SafeAccount, getKnownChainSafeVersion } from "../vendor/safe";
 import { getMinimalEIP1193Provider, createPredictionConfig, createConnectionConfig } from "../utils/helpers";
-import { SafeDeployStep, PendingSafeStatus, PayMethod } from "../utils/types";
+import { SafeConfig, SafeDeployStep, PendingSafeStatus, PayMethod } from "../utils/types";
 import { waitForTransactionReceipt } from "viem/actions";
 import { Chain, zeroAddress } from "viem";
 import { useAccount, useSwitchChain } from "wagmi";
@@ -21,7 +21,7 @@ export default function useNewSafe() {
   const { switchChain } = useSwitchChain();
 
   // Get SafeWalletProvider context
-  const { addSafe, contractNetworks } = useSafeWalletContext();
+  const { addSafe, contractNetworks, getTrustedDeployments } = useSafeWalletContext();
 
   // Predict the address of a new Safe without deploying it
   const predictNewSafeAddress = useCallback(
@@ -31,7 +31,7 @@ export default function useNewSafe() {
       chain: Chain,
       saltNonce: string,
     ): Promise<{ address: `0x${string}`; isDeployed: boolean }> => {
-      let kit: Safe | null = null;
+      let kit: SafeAccount | null = null;
       try {
         const config: SafeConfig = createPredictionConfig(
           chain.rpcUrls.default.http[0],
@@ -41,7 +41,10 @@ export default function useNewSafe() {
           saltNonce,
           contractNetworks,
         );
-        kit = await Safe.init(config);
+        kit = await SafeAccount.init({
+          ...config,
+          confirmedDeployments: getTrustedDeployments(String(chain.id)),
+        });
         if (kit) {
           const safeAddress = await kit.getAddress();
           const isDeployed = await kit.isSafeDeployed();
@@ -52,7 +55,7 @@ export default function useNewSafe() {
       }
       return { address: zeroAddress, isDeployed: false };
     },
-    [signer, contractNetworks],
+    [signer, contractNetworks, getTrustedDeployments],
   );
 
   // Deploy a new Safe on the blockchain
@@ -87,11 +90,14 @@ export default function useNewSafe() {
           saltNonce,
           contractNetworks,
         );
-        const kit = await Safe.init(config);
+        const kit = await SafeAccount.init({
+          ...config,
+          confirmedDeployments: getTrustedDeployments(String(chain.id)),
+        });
         let deploymentTx, kitClient, txHash;
         try {
           deploymentTx = await kit.createSafeDeploymentTransaction();
-          kitClient = await kit.getSafeProvider().getExternalSigner();
+          kitClient = kit.getWalletClient();
           steps[0].status = "success";
           steps[1].status = "running";
           setDeploySteps([...steps]);
@@ -134,7 +140,12 @@ export default function useNewSafe() {
         }
         try {
           const safeAddress = await kit.getAddress();
-          const newKit = await kit.connect({ safeAddress });
+          const newKit = await SafeAccount.init({
+            provider,
+            signer,
+            safeAddress,
+            contractNetworks,
+          });
           const isDeployed = await newKit.isSafeDeployed();
           if (!isDeployed) throw new Error("Safe deployment not detected");
           steps[3].status = "success";
@@ -156,7 +167,7 @@ export default function useNewSafe() {
                   fallbackHandler: chainContracts?.fallbackHandlerAddress || "",
                 },
                 saltNonce: saltNonce || "",
-                safeVersion: "1.4.1", // @TODO dynamic later
+                safeVersion: getKnownChainSafeVersion(chain.id) ?? "1.4.1",
               },
               status: {
                 status: PendingSafeStatus.AWAITING_EXECUTION,
@@ -178,7 +189,7 @@ export default function useNewSafe() {
       }
       return steps;
     },
-    [connector, signer, addSafe, switchChain, contractNetworks],
+    [connector, signer, addSafe, switchChain, contractNetworks, getTrustedDeployments],
   );
 
   // Connect to an existing Safe and fetch its owners and threshold
@@ -199,13 +210,13 @@ export default function useNewSafe() {
           };
         }
         const config = createConnectionConfig(provider, signer, safeAddress, contractNetworks);
-        // Initialize Safe SDK
+        // Initialize the Safe connection
         let kit;
         try {
-          kit = await Safe.init(config);
+          kit = await SafeAccount.init(config);
         } catch (err) {
           return {
-            error: "Failed to initialize Safe SDK: " + (err instanceof Error ? err.message : String(err)),
+            error: "Failed to connect to Safe: " + (err instanceof Error ? err.message : String(err)),
           };
         }
         let deployed;

@@ -4,10 +4,9 @@ import { useSafeWalletContext } from "../provider/SafeWalletProvider";
 import { createConnectionConfig, createPredictionConfig, getMinimalEIP1193Provider } from "../utils/helpers";
 import { getAddress, encodeFunctionData, Address } from "viem";
 
-// Cache for protocolKit instances (per chainId+safeAddress)
 import { useSafeTxContext } from "../provider/SafeTxProvider";
-import Safe, { EthSafeTransaction, SafeConfig } from "@safe-global/protocol-kit";
-import { MinimalEIP1193Provider, SafeDeployStep } from "../utils/types";
+import { SafeAccount, SafeTransaction, SafeDeploymentTrustError } from "../vendor/safe";
+import { MinimalEIP1193Provider, SafeConfig, SafeDeployStep } from "../utils/types";
 import { DEFAULT_DEPLOY_STEPS } from "../utils/constants";
 import { waitForTransactionReceipt } from "viem/actions";
 
@@ -63,7 +62,8 @@ const SAFE_ABI = [
 export default function useSafe(safeAddress: `0x${string}`) {
   const { address: signer, chain, connector, isConnected } = useAccount();
 
-  const { safeWalletData, contractNetworks, addSafe, removeSafe, getSafeMultiSendConfig } = useSafeWalletContext();
+  const { safeWalletData, contractNetworks, addSafe, removeSafe, getSafeMultiSendConfig, getTrustedDeployments } =
+    useSafeWalletContext();
   const { saveTransaction, getTransaction } = useSafeTxContext();
 
   // Get Safe name from addressBook for current chain
@@ -93,20 +93,49 @@ export default function useSafe(safeAddress: `0x${string}`) {
   const deployedSafe = chainId && safeWalletData.data.addressBook[chainId]?.[safeAddress as `0x${string}`];
   const undeployedSafe = chainId && safeWalletData.data.undeployedSafes[chainId]?.[safeAddress as `0x${string}`];
 
-  // Store the current kit instance in a ref
-  const kitRef = useRef<Safe>(null);
+  // Store the current SafeAccount instance in a ref
+  const kitRef = useRef<SafeAccount>(null);
 
-  // Helper to (re)connect and cache a SafeKit instance
+  // Helper to (re)connect and cache a SafeAccount instance
   const connectSafe = useCallback(
-    async (safeAddress: `0x${string}`, provider: MinimalEIP1193Provider, signer: `0x${string}`): Promise<Safe> => {
+    async (
+      safeAddress: `0x${string}`,
+      provider: MinimalEIP1193Provider,
+      signer: `0x${string}`,
+    ): Promise<SafeAccount> => {
       // Ensure signer address is properly checksummed
       const checksummedSigner = getAddress(signer);
-      const config: SafeConfig = createConnectionConfig(provider, checksummedSigner, safeAddress, contractNetworks);
-      let kit = await Safe.init(config);
-      kit = await kit.connect(config);
-      return kit;
+
+      // Apply the per-Safe MultiSend override so batched transactions use it
+      let mergedContractNetworks = contractNetworks;
+      if (chainId && contractNetworks) {
+        const customMultiSend = getSafeMultiSendConfig(chainId, safeAddress);
+        if (customMultiSend && (customMultiSend.multiSendAddress || customMultiSend.multiSendCallOnlyAddress)) {
+          mergedContractNetworks = {
+            ...contractNetworks,
+            [chainId]: {
+              ...contractNetworks[chainId],
+              ...(customMultiSend.multiSendAddress && { multiSendAddress: customMultiSend.multiSendAddress }),
+              ...(customMultiSend.multiSendCallOnlyAddress && {
+                multiSendCallOnlyAddress: customMultiSend.multiSendCallOnlyAddress,
+              }),
+            },
+          };
+        }
+      }
+
+      const config: SafeConfig = createConnectionConfig(
+        provider,
+        checksummedSigner,
+        safeAddress,
+        mergedContractNetworks,
+      );
+      return SafeAccount.init({
+        ...config,
+        confirmedDeployments: chainId ? getTrustedDeployments(chainId) : undefined,
+      });
     },
-    [contractNetworks],
+    [contractNetworks, chainId, getSafeMultiSendConfig, getTrustedDeployments],
   );
 
   // Effect 1: Fetch Safe info from blockchain or local context
@@ -270,7 +299,7 @@ export default function useSafe(safeAddress: `0x${string}`) {
           setDeploySteps([...steps]);
           return steps;
         }
-        // Build SafeConfig using helper for ProtocolKit compatibility
+        // Build the prediction config from the stored undeployed-safe props
         // Ensure signer address is properly checksummed
         const checksummedSigner = signer ? getAddress(signer) : undefined;
 
@@ -300,11 +329,14 @@ export default function useSafe(safeAddress: `0x${string}`) {
           undeployedSafe.props.saltNonce,
           mergedContractNetworks,
         );
-        const kit = await Safe.init(config);
+        const kit = await SafeAccount.init({
+          ...config,
+          confirmedDeployments: getTrustedDeployments(chainId),
+        });
         let deploymentTx, kitClient, txHash;
         try {
           deploymentTx = await kit.createSafeDeploymentTransaction();
-          kitClient = await kit.getSafeProvider().getExternalSigner();
+          kitClient = kit.getWalletClient();
           steps[0].status = "success";
           steps[1].status = "running";
           setDeploySteps([...steps]);
@@ -348,7 +380,12 @@ export default function useSafe(safeAddress: `0x${string}`) {
         }
         try {
           const safeAddress = await kit.getAddress();
-          const newKit = await kit.connect({ safeAddress });
+          const newKit = await SafeAccount.init({
+            provider,
+            signer: checksummedSigner,
+            safeAddress,
+            contractNetworks: mergedContractNetworks,
+          });
           const isDeployed = await newKit.isSafeDeployed();
           if (!isDeployed) throw new Error("Safe deployment not detected");
           steps[3].status = "success";
@@ -371,10 +408,23 @@ export default function useSafe(safeAddress: `0x${string}`) {
       }
       return steps;
     },
-    [undeployedSafe, connector, signer, chain, chainId, addSafe, removeSafe, safeName, contractNetworks],
+    [
+      undeployedSafe,
+      connector,
+      signer,
+      chain,
+      chainId,
+      addSafe,
+      removeSafe,
+      safeName,
+      contractNetworks,
+      getSafeMultiSendConfig,
+      getTrustedDeployments,
+      safeAddress,
+    ],
   );
 
-  // ProtocolKit helpers
+  // Safe transaction helpers
   // Build a SafeTransaction
   const buildSafeTransaction = useCallback(
     async (
@@ -385,7 +435,7 @@ export default function useSafe(safeAddress: `0x${string}`) {
         operation?: number;
       }>,
       nonce?: number,
-    ): Promise<EthSafeTransaction | null> => {
+    ): Promise<SafeTransaction | null> => {
       const kit = kitRef.current;
       if (!kit) return null;
       try {
@@ -413,6 +463,7 @@ export default function useSafe(safeAddress: `0x${string}`) {
         saveTransaction(safeAddress, safeTx, chainId);
         return safeTx;
       } catch (err) {
+        if (err instanceof SafeDeploymentTrustError) throw err;
         console.error("Error building SafeTransaction:", err);
         return null;
       }
@@ -421,14 +472,14 @@ export default function useSafe(safeAddress: `0x${string}`) {
   );
 
   // Validate a SafeTransaction
-  const validateSafeTransaction = useCallback(async (safeTx: EthSafeTransaction): Promise<boolean> => {
+  const validateSafeTransaction = useCallback(async (safeTx: SafeTransaction): Promise<boolean> => {
     const kit = kitRef.current;
     if (!kit) return false;
     return kit.isValidTransaction(safeTx);
   }, []);
 
   // Get transaction hash
-  const getSafeTransactionHash = useCallback(async (safeTx: EthSafeTransaction): Promise<string> => {
+  const getSafeTransactionHash = useCallback(async (safeTx: SafeTransaction): Promise<string> => {
     const kit = kitRef.current;
     if (!kit) return "";
     return kit.getTransactionHash(safeTx);
@@ -436,7 +487,7 @@ export default function useSafe(safeAddress: `0x${string}`) {
 
   // Sign a SafeTransaction
   const signSafeTransaction = useCallback(
-    async (safeTx: EthSafeTransaction): Promise<EthSafeTransaction | null> => {
+    async (safeTx: SafeTransaction): Promise<SafeTransaction | null> => {
       try {
         const kit = kitRef.current;
         if (!kit || !signer) return null;
@@ -456,7 +507,7 @@ export default function useSafe(safeAddress: `0x${string}`) {
         };
 
         // Create a new transaction with normalized data
-        const normalizedSafeTx = new EthSafeTransaction(normalizedTxData);
+        const normalizedSafeTx = new SafeTransaction(normalizedTxData);
         // Copy signatures if any exist
         if (safeTx.signatures) {
           safeTx.signatures.forEach((sig) => {
@@ -476,20 +527,20 @@ export default function useSafe(safeAddress: `0x${string}`) {
   );
 
   // Broadcast a SafeTransaction
-  const broadcastSafeTransaction = useCallback(async (safeTx: EthSafeTransaction) => {
+  const broadcastSafeTransaction = useCallback(async (safeTx: SafeTransaction) => {
     const kit = kitRef.current;
     if (!kit) return null;
     return kit.executeTransaction(safeTx);
   }, []);
 
   // Reconstruct SafeTransaction from provider data (current only)
-  const getSafeTransactionCurrent = useCallback(async (): Promise<EthSafeTransaction | null> => {
+  const getSafeTransactionCurrent = useCallback(async (): Promise<SafeTransaction | null> => {
     const kit = kitRef.current;
     if (!kit) return null;
     const safeTx = getTransaction(safeAddress);
     if (!safeTx) return null;
     // Check if current owner has already signed
-    // Safe SDK stores signatures with lowercase addresses
+    // Signature map keys are lowercase signer addresses
     let signed = false;
     if (safeTx.signatures && signer) {
       const checksummedSigner = getAddress(signer);

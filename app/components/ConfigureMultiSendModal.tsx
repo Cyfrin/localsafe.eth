@@ -2,6 +2,28 @@
 
 import { useState, useEffect } from "react";
 import { isAddress } from "viem";
+import { isOfficialDeployment } from "../vendor/safe";
+import type { ContractAddresses } from "../vendor/safe";
+
+function AddressTrustHint({
+  field,
+  value,
+  chainId,
+}: {
+  field: keyof ContractAddresses;
+  value: string;
+  chainId?: number | string;
+}) {
+  if (!value || !isAddress(value)) return null;
+  if (isOfficialDeployment(field, value, chainId)) {
+    return <p className="mt-1 font-mono text-xs opacity-60">[trusted] known safe deployment</p>;
+  }
+  return (
+    <p className="text-warning mt-1 font-mono text-xs" data-testid={`untrusted-${field}`}>
+      [untrusted] not a known safe deployment — verify this contract before signing
+    </p>
+  );
+}
 
 type ConfigureMultiSendModalProps = {
   open: boolean;
@@ -9,6 +31,7 @@ type ConfigureMultiSendModalProps = {
   currentMultiSend?: string;
   currentMultiSendCallOnly?: string;
   onSave: (multiSend?: string, multiSendCallOnly?: string) => void;
+  chainId?: number | string;
 };
 
 export default function ConfigureMultiSendModal({
@@ -17,6 +40,7 @@ export default function ConfigureMultiSendModal({
   currentMultiSend,
   currentMultiSendCallOnly,
   onSave,
+  chainId,
 }: ConfigureMultiSendModalProps) {
   const [multiSendAddress, setMultiSendAddress] = useState(currentMultiSend || "");
   const [multiSendCallOnlyAddress, setMultiSendCallOnlyAddress] = useState(currentMultiSendCallOnly || "");
@@ -103,6 +127,7 @@ export default function ConfigureMultiSendModal({
             <label className="label">
               <span className="label-text-alt">Used for batching multiple transactions together</span>
             </label>
+            <AddressTrustHint field="multiSendAddress" value={multiSendAddress} chainId={chainId} />
           </div>
 
           <div className="form-control">
@@ -119,6 +144,7 @@ export default function ConfigureMultiSendModal({
             <label className="label">
               <span className="label-text-alt">Used for call-only (no delegatecall) batched transactions</span>
             </label>
+            <AddressTrustHint field="multiSendCallOnlyAddress" value={multiSendCallOnlyAddress} chainId={chainId} />
           </div>
 
           {error && (

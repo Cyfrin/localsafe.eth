@@ -6,7 +6,7 @@ import EIP712DataDisplay from "@/app/components/EIP712DataDisplay";
 import { useNavigate } from "react-router-dom";
 import useSafe from "@/app/hooks/useSafe";
 import { useEffect, useState } from "react";
-import { EthSafeMessage } from "@safe-global/protocol-kit";
+import { SafeMessage } from "../../../../vendor/safe";
 import { useSafeMessageContext } from "@/app/provider/SafeMessageProvider";
 import { useAccount, useChainId } from "wagmi";
 import { ethers } from "ethers";
@@ -29,7 +29,7 @@ export default function MessageDetailsClient({
   const { kit, isOwner, safeInfo } = useSafe(safeAddress);
   const { getAllMessages, saveMessage, removeMessage } = useSafeMessageContext();
 
-  const [safeMessage, setSafeMessage] = useState<EthSafeMessage | null>(null);
+  const [safeMessage, setSafeMessage] = useState<SafeMessage | null>(null);
   const [signing, setSigning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [messageDisplay, setMessageDisplay] = useState<string>("");
@@ -54,7 +54,7 @@ export default function MessageDetailsClient({
         const allMessages = getAllMessages(safeAddress, chainId?.toString());
 
         // Find message by comparing the hash
-        let foundMessage: EthSafeMessage | null = null;
+        let foundMessage: SafeMessage | null = null;
         for (const msg of allMessages) {
           if (kit) {
             const hash = await kit.getSafeMessageHash(msg.data as any);

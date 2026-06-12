@@ -1,13 +1,13 @@
 "use client";
 
-import { EthSafeSignature, EthSafeTransaction } from "@safe-global/protocol-kit";
+import { SafeSignature, SafeTransaction } from "../vendor/safe";
 import React, { createContext, useContext, useEffect, useRef } from "react";
 import { SAFE_TX_STORAGE_KEY } from "../utils/constants";
 
 export interface SafeTxContextType {
-  saveTransaction: (safeAddress: string, txObj: EthSafeTransaction, chainId?: string) => void;
-  getTransaction: (safeAddress: string, chainId?: string) => EthSafeTransaction | null;
-  getAllTransactions: (safeAddress: string, chainId?: string) => EthSafeTransaction[];
+  saveTransaction: (safeAddress: string, txObj: SafeTransaction, chainId?: string) => void;
+  getTransaction: (safeAddress: string, chainId?: string) => SafeTransaction | null;
+  getAllTransactions: (safeAddress: string, chainId?: string) => SafeTransaction[];
   removeTransaction: (safeAddress: string, txHash?: string, nonce?: number, chainId?: string) => void;
   exportTx: (safeAddress: string, chainId?: string) => string;
   importTx: (safeAddress: string, json: string, chainId?: string) => void;
@@ -18,13 +18,13 @@ const SafeTxContext = createContext<SafeTxContextType | undefined>(undefined);
 export const SafeTxProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // In-memory map of current transactions per safeAddress (now stores arrays)
   const currentTxMapRef = useRef<{
-    [safeAddress: string]: EthSafeTransaction[];
+    [safeAddress: string]: SafeTransaction[];
   }>({});
 
   // Hydrate all transactions from localStorage on mount
   type StoredTx = {
-    data: EthSafeTransaction["data"];
-    signatures?: EthSafeSignature[];
+    data: SafeTransaction["data"];
+    signatures?: SafeSignature[];
   };
 
   useEffect(() => {
@@ -34,14 +34,14 @@ export const SafeTxProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (rawMap) {
         const parsedMap: Record<string, StoredTx[]> = JSON.parse(rawMap);
         Object.entries(parsedMap).forEach(([safeAddress, txArray]) => {
-          const transactions: EthSafeTransaction[] = [];
+          const transactions: SafeTransaction[] = [];
           if (Array.isArray(txArray)) {
             txArray.forEach((parsed) => {
               if (parsed && typeof parsed === "object" && "data" in parsed) {
-                const txObj = new EthSafeTransaction(parsed.data);
+                const txObj = new SafeTransaction(parsed.data);
                 if (parsed.signatures && Array.isArray(parsed.signatures)) {
                   parsed.signatures.forEach((sig: { signer: string; data: string; isContractSignature: boolean }) => {
-                    const ethSignature = new EthSafeSignature(sig.signer, sig.data, sig.isContractSignature);
+                    const ethSignature = new SafeSignature(sig.signer, sig.data, sig.isContractSignature);
                     txObj.addSignature(ethSignature);
                   });
                 }
@@ -58,7 +58,7 @@ export const SafeTxProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   // Add or update a transaction for a specific safeAddress and chainId
-  function saveTransaction(safeAddress: string, txObj: EthSafeTransaction, chainId?: string) {
+  function saveTransaction(safeAddress: string, txObj: SafeTransaction, chainId?: string) {
     // Create composite key: safeAddress-chainId
     const key = chainId ? `${safeAddress}-${chainId}` : safeAddress;
 
@@ -97,14 +97,14 @@ export const SafeTxProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }
 
   // Get the first transaction (lowest nonce) for a specific safeAddress and chainId
-  function getTransaction(safeAddress: string, chainId?: string): EthSafeTransaction | null {
+  function getTransaction(safeAddress: string, chainId?: string): SafeTransaction | null {
     const key = chainId ? `${safeAddress}-${chainId}` : safeAddress;
     const txs = currentTxMapRef.current[key];
     return txs && txs.length > 0 ? txs[0] : null;
   }
 
   // Get all transactions for a specific safeAddress and chainId, sorted by nonce
-  function getAllTransactions(safeAddress: string, chainId?: string): EthSafeTransaction[] {
+  function getAllTransactions(safeAddress: string, chainId?: string): SafeTransaction[] {
     const key = chainId ? `${safeAddress}-${chainId}` : safeAddress;
     return currentTxMapRef.current[key] || [];
   }
@@ -179,16 +179,16 @@ export const SafeTxProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const key = chainId ? `${safeAddress}-${chainId}` : safeAddress;
     try {
       const obj = JSON.parse(json);
-      const transactions: EthSafeTransaction[] = [];
+      const transactions: SafeTransaction[] = [];
 
       // Handle new format (array of transactions)
       if (obj.transactions && Array.isArray(obj.transactions)) {
         obj.transactions.forEach((storedTx: StoredTx) => {
           if (storedTx.data) {
-            const txObj = new EthSafeTransaction(storedTx.data);
+            const txObj = new SafeTransaction(storedTx.data);
             if (storedTx.signatures && Array.isArray(storedTx.signatures)) {
               storedTx.signatures.forEach((sig: { signer: string; data: string; isContractSignature: boolean }) => {
-                const ethSignature = new EthSafeSignature(sig.signer, sig.data, sig.isContractSignature);
+                const ethSignature = new SafeSignature(sig.signer, sig.data, sig.isContractSignature);
                 txObj.addSignature(ethSignature);
               });
             }
@@ -198,10 +198,10 @@ export const SafeTxProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
       // Handle old format (single transaction)
       else if (obj.tx && obj.tx.data) {
-        const txObj = new EthSafeTransaction(obj.tx.data);
+        const txObj = new SafeTransaction(obj.tx.data);
         if (obj.tx.signatures && Array.isArray(obj.tx.signatures)) {
           obj.tx.signatures.forEach((sig: { signer: string; data: string; isContractSignature: boolean }) => {
-            const ethSignature = new EthSafeSignature(sig.signer, sig.data, sig.isContractSignature);
+            const ethSignature = new SafeSignature(sig.signer, sig.data, sig.isContractSignature);
             txObj.addSignature(ethSignature);
           });
         }

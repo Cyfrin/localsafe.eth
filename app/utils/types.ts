@@ -1,6 +1,6 @@
 // Types for SafeProvider helpers
-import { EthSafeTransaction } from "@safe-global/protocol-kit";
-import { ContractNetworks } from "./contractNetworks";
+import type { SafeTransaction } from "../vendor/safe";
+import { ContractAddresses, ContractNetworks } from "./contractNetworks";
 import { Chain, ChainContract } from "viem";
 
 // Step status type
@@ -19,11 +19,8 @@ export type SafeDeployStep = {
 } & SafeStep;
 
 // Minimal EIP-1193 Provider type
-export type MinimalEIP1193Provider = {
-  request: (args: unknown) => Promise<unknown>;
-  on?: (...args: unknown[]) => void;
-  removeListener?: (...args: unknown[]) => void;
-};
+export type { MinimalEIP1193Provider } from "../vendor/safe";
+import type { MinimalEIP1193Provider } from "../vendor/safe";
 
 // SafeConfig union type
 export type SafeConfigPrediction = {
@@ -124,6 +121,9 @@ export interface SafeWalletData {
         };
       };
     };
+    trustedDeployments?: {
+      [chainId: string]: ContractAddresses;
+    };
   };
 }
 
@@ -135,7 +135,7 @@ export type AbiFunctionItem = {
 };
 
 // Preview type for import
-export type ImportTxPreview = EthSafeTransaction | { error: string } | null;
+export type ImportTxPreview = SafeTransaction | { error: string } | null;
 
 // DeploymentModal props
 export interface DeploymentModalProps {

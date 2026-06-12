@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * SafeProvider Context for Safe ProtocolKit SDK
+ * SafeWallet context: persisted Safe data and per-chain contract addresses
  *
  * This context uses React's useCallback to memoize context functions (initSafe, connectSafe, resetSafe).
  * Memoization ensures that the context value remains stable between renders, preventing unnecessary re-renders
@@ -13,7 +13,7 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 import type { SafeWalletData, UndeployedSafe } from "../utils/types";
 import { buildContractNetworks } from "../utils/contractNetworks";
-import type { ContractNetworks } from "../utils/contractNetworks";
+import type { ContractAddresses, ContractNetworks } from "../utils/contractNetworks";
 import { useChains } from "wagmi";
 import { DEFAULT_SAFE_WALLET_DATA, SAFE_WALLET_DATA_KEY } from "../utils/constants";
 
@@ -34,6 +34,8 @@ export interface SafeWalletContextType {
     chainId: string,
     safeAddress: string,
   ) => { multiSendAddress?: string; multiSendCallOnlyAddress?: string } | undefined;
+  setTrustedDeployments: (chainId: string, addresses?: ContractAddresses) => void;
+  getTrustedDeployments: (chainId: string) => ContractAddresses | undefined;
 }
 
 export const SafeWalletContext = createContext<SafeWalletContextType | undefined>(undefined);
@@ -74,9 +76,7 @@ export const SafeWalletProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [safeWalletData, loaded]);
   // Build contractNetworks whenever chains change
   useEffect(() => {
-    buildContractNetworks([...chains])
-      .then(setContractNetworks)
-      .catch(() => setContractNetworks(undefined));
+    setContractNetworks(buildContractNetworks([...chains]));
   }, [chains]);
 
   const addSafe = (chainId: string, safeAddress: string, safeName: string, safeConfig?: UndeployedSafe) => {
@@ -143,6 +143,25 @@ export const SafeWalletProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return safeWalletData?.data?.safeConfig?.[chainId]?.[safeAddress];
   };
 
+  // User-confirmed Safe deployment set per chain; consulted by the deployment-trust gate
+  const setTrustedDeployments = (chainId: string, addresses?: ContractAddresses) => {
+    setSafeWalletData((prev) => {
+      const data = { ...prev.data };
+      const trustedDeployments = { ...data.trustedDeployments };
+      if (addresses && Object.values(addresses).some(Boolean)) {
+        trustedDeployments[chainId] = addresses;
+      } else {
+        delete trustedDeployments[chainId];
+      }
+      data.trustedDeployments = trustedDeployments;
+      return { ...prev, data };
+    });
+  };
+
+  const getTrustedDeployments = (chainId: string) => {
+    return safeWalletData?.data?.trustedDeployments?.[chainId];
+  };
+
   return (
     <SafeWalletContext.Provider
       value={{
@@ -153,6 +172,8 @@ export const SafeWalletProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         removeSafe,
         setSafeMultiSendConfig,
         getSafeMultiSendConfig,
+        setTrustedDeployments,
+        getTrustedDeployments,
       }}
     >
       {children}

@@ -9,10 +9,13 @@ import React, { useEffect, useState, useRef } from "react";
 import { useSafeTxContext } from "@/app/provider/SafeTxProvider";
 import { useSafeMessageContext } from "@/app/provider/SafeMessageProvider";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useAccount } from "wagmi";
+import { useAccount, usePublicClient } from "wagmi";
 import { formatEther } from "viem";
 import { ImportTxPreview, SafeDeployStep } from "@/app/utils/types";
-import { EthSafeTransaction, EthSafeSignature, EthSafeMessage } from "@safe-global/protocol-kit";
+import { SafeTransaction, SafeSignature, SafeMessage, verifyDeployments } from "../../vendor/safe";
+import type { ContractAddresses, DeploymentTrustResult } from "../../vendor/safe";
+import TrustedDeploymentsModal from "@/app/components/TrustedDeploymentsModal";
+import { isTxBuilderBatch, parseTxBuilderBatch } from "@/app/utils/txBuilderBatch";
 import { Link } from "react-router-dom";
 import DeploymentModal from "@/app/components/DeploymentModal";
 import ImportSafeTxModal from "@/app/components/ImportSafeTxModal";
@@ -43,11 +46,19 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
     kit,
     deployUndeployedSafe,
     createBatchedOwnerManagementTransaction,
+    buildSafeTransaction,
   } = useSafe(safeAddress);
   // Hooks
   const { exportTx, importTx, getAllTransactions, saveTransaction, removeTransaction } = useSafeTxContext();
   const { getAllMessages, saveMessage, removeMessage } = useSafeMessageContext();
-  const { setSafeMultiSendConfig, getSafeMultiSendConfig } = useSafeWalletContext();
+  const {
+    setSafeMultiSendConfig,
+    getSafeMultiSendConfig,
+    contractNetworks,
+    setTrustedDeployments,
+    getTrustedDeployments,
+  } = useSafeWalletContext();
+  const publicClient = usePublicClient();
   const toast = useToast();
   const { confirm } = useConfirm();
 
@@ -58,8 +69,8 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
   const [deploySteps, setDeploySteps] = useState<SafeDeployStep[]>(DEFAULT_DEPLOY_STEPS);
   const [deployError, setDeployError] = useState<string | null>(null);
   const [deployTxHash, setDeployTxHash] = useState<string | null>(null);
-  const [allTxs, setAllTxs] = useState<Array<{ tx: EthSafeTransaction; hash: string }>>([]);
-  const [allMessages, setAllMessages] = useState<Array<{ message: EthSafeMessage; hash: string }>>([]);
+  const [allTxs, setAllTxs] = useState<Array<{ tx: SafeTransaction; hash: string }>>([]);
+  const [allMessages, setAllMessages] = useState<Array<{ message: SafeMessage; hash: string }>>([]);
   // Import/export modal state
   const [showImportModal, setShowImportModal] = useState(false);
   const [importPreview, setImportPreview] = useState<ImportTxPreview | { error: string } | null>(null);
@@ -122,7 +133,7 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
             const allTransactions = getAllTransactions(safeAddress, chainId);
 
             // Search for transaction matching the hash
-            let matchingTx: EthSafeTransaction | null = null;
+            let matchingTx: SafeTransaction | null = null;
             for (const tx of allTransactions) {
               if (!kit) break;
               const hash = await kit.getTransactionHash(tx);
@@ -134,7 +145,7 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
 
             if (matchingTx) {
               // Add the signature to the transaction
-              const ethSignature = new EthSafeSignature(
+              const ethSignature = new SafeSignature(
                 parsed.signature.signer,
                 parsed.signature.data,
                 parsed.signature.isContractSignature,
@@ -165,11 +176,11 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
           if (parsed.message && parsed.message.data) {
             // Import the full message with signatures
             const chainId = urlChainId || (chain?.id ? String(chain.id) : undefined);
-            const msgObj = new EthSafeMessage(parsed.message.data as any);
+            const msgObj = new SafeMessage(parsed.message.data as any);
             if (parsed.message.signatures && Array.isArray(parsed.message.signatures)) {
               parsed.message.signatures.forEach(
                 (sig: { signer: string; data: string; isContractSignature: boolean }) => {
-                  const ethSignature = new EthSafeSignature(sig.signer, sig.data, sig.isContractSignature);
+                  const ethSignature = new SafeSignature(sig.signer, sig.data, sig.isContractSignature);
                   msgObj.addSignature(ethSignature);
                 },
               );
@@ -206,7 +217,7 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
             const allMessages = getAllMessages(safeAddress, chainId);
 
             // Search for message matching the hash
-            let matchingMsg: EthSafeMessage | null = null;
+            let matchingMsg: SafeMessage | null = null;
             for (const msg of allMessages) {
               if (!kit) break;
               const hash = await kit.getSafeMessageHash(msg.data as any);
@@ -218,7 +229,7 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
 
             if (matchingMsg) {
               // Add the signature to the message
-              const ethSignature = new EthSafeSignature(
+              const ethSignature = new SafeSignature(
                 parsed.signature.signer,
                 parsed.signature.data,
                 parsed.signature.isContractSignature,
@@ -385,6 +396,29 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
   // Utility to handle Safe transaction import and state update
   async function handleImportTx(importPreview: ImportTxPreview | { error: string } | null) {
     if (typeof importPreview === "object" && importPreview !== null && !("error" in importPreview)) {
+      // Safe{Wallet} Transaction Builder batches carry raw calls (often with calldata
+      // still to be ABI-encoded) — build them into one batched Safe transaction
+      if (isTxBuilderBatch(importPreview)) {
+        try {
+          const parsed = parseTxBuilderBatch(importPreview);
+          if (chain?.id && parsed.chainId !== String(chain.id)) {
+            toast.error(`This batch is for chain ${parsed.chainId} — switch network first`);
+            return;
+          }
+          const safeTx = await buildSafeTransaction(parsed.transactions);
+          if (!safeTx) {
+            toast.error("Failed to build transaction from batch");
+            return;
+          }
+          setShowImportModal(false);
+          setImportPreview(null);
+          setRefreshCounter((c) => c + 1);
+          toast.success(`Imported batch${parsed.name ? `: ${parsed.name}` : ""}`);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Failed to import Transaction Builder batch");
+        }
+        return;
+      }
       try {
         const chainId = chain?.id ? String(chain.id) : undefined;
         importTx(safeAddress, JSON.stringify(importPreview), chainId);
@@ -414,6 +448,55 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
 
   // Get current MultiSend config for this Safe
   const currentMultiSendConfig = chain?.id ? getSafeMultiSendConfig(String(chain.id), safeAddress) : undefined;
+
+  // Effective contract set for this chain (network config + per-Safe overrides)
+  const effectiveContracts: ContractAddresses | null =
+    chain?.id && contractNetworks
+      ? {
+          ...contractNetworks[String(chain.id)],
+          ...(currentMultiSendConfig?.multiSendAddress && {
+            multiSendAddress: currentMultiSendConfig.multiSendAddress,
+          }),
+          ...(currentMultiSendConfig?.multiSendCallOnlyAddress && {
+            multiSendCallOnlyAddress: currentMultiSendConfig.multiSendCallOnlyAddress,
+          }),
+        }
+      : null;
+
+  // Verify the effective contracts on-chain: known addresses, official bytecode, or
+  // user-confirmed pass; anything else is surfaced with a review prompt
+  const [deploymentTrust, setDeploymentTrust] = useState<DeploymentTrustResult[]>([]);
+  const [trustModalOpen, setTrustModalOpen] = useState(false);
+  const trustedDeployments = chain?.id ? getTrustedDeployments(String(chain.id)) : undefined;
+  const effectiveContractsKey = JSON.stringify(effectiveContracts) + JSON.stringify(trustedDeployments ?? null);
+  useEffect(() => {
+    if (!chain?.id || !publicClient || !effectiveContracts) {
+      setDeploymentTrust([]);
+      return;
+    }
+    let cancelled = false;
+    verifyDeployments({
+      client: publicClient,
+      chainId: chain.id,
+      contracts: effectiveContracts,
+      fields: Object.keys(effectiveContracts) as Array<keyof ContractAddresses>,
+      confirmed: trustedDeployments,
+    })
+      .then((results) => {
+        if (!cancelled) setDeploymentTrust(results);
+      })
+      .catch(() => {
+        if (!cancelled) setDeploymentTrust([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- object identities change every render; key captures content
+  }, [chain?.id, publicClient, effectiveContractsKey]);
+
+  const deploymentIssues = deploymentTrust.filter(
+    (result) => result.status === "no-code" || result.status === "unverified",
+  );
 
   // Handle MultiSend config save
   function handleSaveMultiSendConfig(multiSend?: string, multiSendCallOnly?: string) {
@@ -458,6 +541,25 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
 
   return (
     <AppSection>
+      {deploymentIssues.length > 0 && (
+        <p className="text-warning mb-4 font-mono text-xs" data-testid="untrusted-contracts-warning">
+          [untrusted] safe contracts on this chain are not verified (
+          {deploymentIssues.map((issue) => issue.field.replace(/Address$/, "")).join(", ")}){" — "}
+          <button className="link" data-testid="review-deployments-btn" onClick={() => setTrustModalOpen(true)}>
+            review
+          </button>
+        </p>
+      )}
+      {chain?.id && effectiveContracts && (
+        <TrustedDeploymentsModal
+          open={trustModalOpen}
+          onClose={() => setTrustModalOpen(false)}
+          chainId={String(chain.id)}
+          contracts={effectiveContracts}
+          confirmed={trustedDeployments}
+          onConfirm={(addresses) => setTrustedDeployments(String(chain.id), addresses)}
+        />
+      )}
       {/* Stat row for key Safe data */}
       <div className="stats stats-horizontal mb-6">
         <div className="stat" data-testid="safe-dashboard-threshold">
@@ -783,6 +885,7 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
       )}
       {/* Configure MultiSend Modal */}
       <ConfigureMultiSendModal
+        chainId={chain?.id}
         open={multiSendModalOpen}
         onClose={() => setMultiSendModalOpen(false)}
         currentMultiSend={currentMultiSendConfig?.multiSendAddress}

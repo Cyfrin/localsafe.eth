@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { encodeFunctionData, parseUnits } from "viem";
 import useSafe from "@/app/hooks/useSafe";
 import { useSafeTxContext } from "@/app/provider/SafeTxProvider";
-import { EthSafeTransaction } from "@safe-global/protocol-kit";
+import { SafeTransaction } from "../vendor/safe";
 import { useAccount } from "wagmi";
 
 interface TokenTransferModalProps {
@@ -61,7 +61,7 @@ export default function TokenTransferModal({
     if (!safeInfo) return 0;
 
     // Find highest nonce in queue
-    const queuedNonces = queuedTransactions.map((tx: EthSafeTransaction) => Number(tx.data.nonce));
+    const queuedNonces = queuedTransactions.map((tx: SafeTransaction) => Number(tx.data.nonce));
     const highestQueued = queuedNonces.length > 0 ? Math.max(...queuedNonces) : safeInfo.nonce - 1;
 
     // Next available is highest queued + 1, or current Safe nonce if nothing queued
@@ -97,7 +97,7 @@ export default function TokenTransferModal({
     }
 
     // Check if nonce is already in queue
-    const nonceInQueue = queuedTransactions.some((tx: EthSafeTransaction) => Number(tx.data.nonce) === nonce);
+    const nonceInQueue = queuedTransactions.some((tx: SafeTransaction) => Number(tx.data.nonce) === nonce);
     if (nonceInQueue) {
       setNonceWarning(`⚠️ A transaction with nonce ${nonce} is already queued. Building this will overwrite it.`);
       return;
