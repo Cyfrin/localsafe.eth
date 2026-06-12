@@ -34,7 +34,7 @@ export default function AddressInput({
   testId,
   required = false,
 }: AddressInputProps) {
-  const { address: resolvedAddress, isLoading: isResolvingEns, isEnsName } = useEnsAddress(value);
+  const { address: resolvedAddress, isLoading: isResolvingEns, isEnsName, isEnsAvailable } = useEnsAddress(value);
 
   // Compute the effective address
   const effectiveAddress = isEnsName ? resolvedAddress : ADDRESS_PATTERN.test(value) ? value : undefined;
@@ -61,7 +61,11 @@ export default function AddressInput({
       />
       {isEnsName && (
         <label className="label">
-          {isResolvingEns ? (
+          {!isEnsAvailable ? (
+            <span className="label-text-alt text-warning">
+              ENS unavailable — connect to mainnet or set a mainnet RPC in network settings
+            </span>
+          ) : isResolvingEns ? (
             <span className="label-text-alt flex items-center gap-2">
               <span className="loading loading-spinner loading-xs"></span>
               Resolving ENS name...

@@ -11,9 +11,10 @@ const UNIVERSAL_RESOLVER_HEX = "eeeeeeee14d718c2b47d9923deab1335e144eeee";
 const MOCK_RESOLVER = "4976fb03c32e5b8cfe2b6ccb31c09ba78ebaba41";
 
 /**
- * Default mainnet RPC URL used by viem when no custom URL is configured.
+ * Mock-only mainnet RPC URL; playwright.config.ts sets NEXT_PUBLIC_MAINNET_RPC_URL to
+ * this value so the app enables ENS and every request lands in the route handler below.
  */
-const VIEM_DEFAULT_MAINNET_RPC = "https://eth.merkle.io";
+const E2E_MAINNET_RPC = "https://ens-mock.localsafe.test";
 
 /**
  * DNS-encode an ENS name (e.g. "test.eth" -> "04746573740365746800").
@@ -130,12 +131,11 @@ function wrapInMulticall3Response(innerHex: string): string {
 export type EnsMappings = Record<string, string>;
 
 /**
- * Get the mainnet RPC URL that the app uses for ENS resolution.
- * Uses NEXT_PUBLIC_MAINNET_RPC_URL env var if set, otherwise falls back
- * to viem's default mainnet RPC (https://eth.merkle.io).
+ * Get the mainnet RPC URL that the app uses for ENS resolution
+ * (NEXT_PUBLIC_MAINNET_RPC_URL, set by playwright.config.ts for test runs).
  */
 function getMainnetRpcUrl(): string {
-  return process.env.NEXT_PUBLIC_MAINNET_RPC_URL || VIEM_DEFAULT_MAINNET_RPC;
+  return process.env.NEXT_PUBLIC_MAINNET_RPC_URL || E2E_MAINNET_RPC;
 }
 
 /**
