@@ -454,13 +454,6 @@ export class SafeAccount {
     }
 
     const args = this.#execTransactionArgs(augmented);
-    const gas = await this.publicClient.estimateContractGas({
-      address: this.safeAddress,
-      abi: SAFE_EXEC_ABI,
-      functionName: "execTransaction",
-      args,
-      account: signerAddress,
-    });
     const hash = await walletClient.writeContract({
       address: this.safeAddress,
       abi: SAFE_EXEC_ABI,
@@ -468,7 +461,6 @@ export class SafeAccount {
       args,
       account: signerAddress,
       chain: walletClient.chain,
-      gas,
     });
     return { hash };
   }
