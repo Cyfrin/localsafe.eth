@@ -1,0 +1,29 @@
+# Keep GitHub Actions SHA pins and npm dependencies current. Updates wait 7 days
+# (cooldown) to dodge freshly-published malicious releases, mirroring the
+# `minimum-release-age` guard in .npmrc, and are grouped to reduce review churn.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"

@@ -48,7 +48,6 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-next": "^0.0.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "playwright-core": "1.48.2",
     "prettier": "^3.6.2",
