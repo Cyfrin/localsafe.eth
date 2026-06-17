@@ -16,6 +16,7 @@ import WalletConnectTxClient from "./safe/[address]/wc-tx/WalletConnectTxClient"
 import WalletConnectSignClient from "./safe/[address]/wc-sign/WalletConnectSignClient";
 import MessageDetailsClient from "./safe/[address]/message/[messageHash]/MessageDetailsClient";
 import SignMessageClient from "./safe/[address]/sign-message/SignMessageClient";
+import DAppBrowserClient from "./safe/[address]/apps/DAppBrowserClient";
 
 // Wrapper components to pass route params to client components
 function SafeDashboardWrapper() {
@@ -53,6 +54,11 @@ function SignMessageWrapper() {
   return <SignMessageClient safeAddress={address as `0x${string}`} />;
 }
 
+function DAppBrowserWrapper() {
+  const { address } = useParams<{ address: string }>();
+  return <DAppBrowserClient safeAddress={address as `0x${string}`} />;
+}
+
 // Layout component that wraps all routes with NavBar and Footer
 function Layout() {
   return (
@@ -87,6 +93,7 @@ export default function App() {
           <Route path="/safe/:address/message/:messageHash" element={<MessageDetailsWrapper />} />
           <Route path="/safe/:address/wc-tx" element={<WalletConnectTxWrapper />} />
           <Route path="/safe/:address/wc-sign" element={<WalletConnectSignWrapper />} />
+          <Route path="/safe/:address/apps" element={<DAppBrowserWrapper />} />
         </Route>
       </Routes>
     </HashRouter>

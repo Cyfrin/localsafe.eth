@@ -697,20 +697,27 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
               </>
             )}
             {safeInfo && safeInfo.deployed && isOwner && !isLoading && !error && !unavailable && (
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2">
                 <button
-                  className="btn btn-outline btn-primary"
+                  className="btn btn-outline btn-primary w-full"
                   onClick={handleGoToBuilder}
                   data-testid="safe-dashboard-go-to-builder-btn"
                 >
                   Build New Transaction
                 </button>
                 <button
-                  className="btn btn-outline btn-secondary"
+                  className="btn btn-outline btn-secondary w-full"
                   onClick={handleGoToSignMessage}
                   data-testid="safe-dashboard-sign-message-btn"
                 >
                   Sign Message
+                </button>
+                <button
+                  className="btn btn-outline btn-accent w-full"
+                  onClick={() => navigate(`/safe/${safeAddress}/apps`)}
+                  data-testid="safe-dashboard-dapp-browser-btn"
+                >
+                  dApp Browser
                 </button>
               </div>
             )}
