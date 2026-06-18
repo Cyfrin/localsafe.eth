@@ -12,7 +12,7 @@ const compat = new FlatCompat({
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript", "prettier"),
   {
-    ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", ".cache-synpress/**"],
+    ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", ".cache-synpress/**", "snap/**"],
   },
   {
     rules: {
@@ -27,6 +27,15 @@ const eslintConfig = [
 
       // React hooks warnings instead of errors (still important but not blocking)
       "react-hooks/exhaustive-deps": "warn",
+    },
+  },
+  {
+    // Playwright test fixtures call `use(...)` (the fixture callback, not the
+    // React `use` hook), so the react-hooks rules don't apply to test code.
+    files: ["tests/**"],
+    rules: {
+      "react-hooks/rules-of-hooks": "off",
+      "react-hooks/exhaustive-deps": "off",
     },
   },
 ];

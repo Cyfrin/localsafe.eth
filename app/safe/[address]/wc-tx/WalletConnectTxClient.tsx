@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWalletConnect } from "@/app/provider/WalletConnectProvider";
+import { useToast } from "@/app/hooks/useToast";
 import useSafe from "@/app/hooks/useSafe";
 import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
@@ -13,6 +14,7 @@ import type { SignClientTypes } from "@walletconnect/types";
 
 export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0x${string}` }) {
   const navigate = useNavigate();
+  const toast = useToast();
   const { chain } = useAccount();
   const { pendingRequest, approveRequest, rejectRequest, clearPendingRequest } = useWalletConnect();
   const { buildSafeTransaction, kit, safeInfo } = useSafe(safeAddress);
@@ -89,7 +91,7 @@ export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0
       // Parse custom nonce if provided
       const nonce = customNonce ? parseInt(customNonce, 10) : undefined;
       if (customNonce && (isNaN(nonce!) || nonce! < 0)) {
-        alert("Invalid nonce value");
+        toast.error("Invalid nonce value");
         setIsProcessing(false);
         return;
       }
@@ -136,7 +138,7 @@ export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0
       navigate(`/safe/${safeAddress}/tx/${safeTxHash}`);
     } catch (error) {
       console.error("Failed to approve transaction:", error);
-      alert(`Failed to approve transaction: ${error instanceof Error ? error.message : String(error)}`);
+      toast.error(`Failed to approve transaction: ${error instanceof Error ? error.message : String(error)}`);
       setIsProcessing(false);
     }
   };
@@ -153,7 +155,7 @@ export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0
       // Parse custom nonce if provided
       const nonce = customNonce ? parseInt(customNonce, 10) : undefined;
       if (customNonce && (isNaN(nonce!) || nonce! < 0)) {
-        alert("Invalid nonce value");
+        toast.error("Invalid nonce value");
         setIsProcessing(false);
         return;
       }
@@ -202,7 +204,7 @@ export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0
       navigate(`/safe/${safeAddress}/tx/${safeTxHash}`);
     } catch (error) {
       console.error("Failed to create transaction:", error);
-      alert(`Failed to create transaction: ${error instanceof Error ? error.message : String(error)}`);
+      toast.error(`Failed to create transaction: ${error instanceof Error ? error.message : String(error)}`);
       setIsProcessing(false);
     }
   };
@@ -222,7 +224,7 @@ export default function WalletConnectTxClient({ safeAddress }: { safeAddress: `0
       );
     } catch (error) {
       console.error("Failed to reject transaction:", error);
-      alert(`Failed to reject transaction: ${error instanceof Error ? error.message : String(error)}`);
+      toast.error(`Failed to reject transaction: ${error instanceof Error ? error.message : String(error)}`);
       setIsProcessing(false);
       return;
     } finally {

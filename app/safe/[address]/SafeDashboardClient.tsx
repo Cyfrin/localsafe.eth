@@ -24,6 +24,15 @@ import ManageOwnersModal from "@/app/components/ManageOwnersModal";
 import ConfigureMultiSendModal from "@/app/components/ConfigureMultiSendModal";
 import { useSafeWalletContext } from "@/app/provider/SafeWalletProvider";
 import { useToast, useConfirm } from "@/app/hooks/useToast";
+import {
+  connectSnap,
+  createSafeKeyringAccount,
+  getInstalledSnap,
+  isSafeInKeyring,
+  removeSafeFromKeyring,
+} from "@/app/utils/snap";
+
+type MmStatus = "checking" | "no-mm" | "uninstalled" | "not-added" | "added";
 
 /**
  * SafeDashboardClient component that displays the dashboard for a specific safe, including its details and actions.
@@ -77,6 +86,39 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
   const fileInputRef = useRef<HTMLInputElement>(null);
   const processedImportRef = useRef<string | null>(null);
   const [refreshCounter, setRefreshCounter] = useState(0);
+  const [mmStatus, setMmStatus] = useState<MmStatus>("checking");
+  const [mmBusy, setMmBusy] = useState(false);
+  const [mmRefresh, setMmRefresh] = useState(0);
+
+  // Derive the MetaMask snap/account status for this Safe (install -> add -> added).
+  useEffect(() => {
+    if (!safeInfo?.deployed) return;
+    let cancelled = false;
+    setMmStatus("checking");
+    async function deriveMmStatus() {
+      // getInstalledSnap() throws when no wallet is injected; detect that first.
+      if (typeof window === "undefined" || !(globalThis as { ethereum?: unknown }).ethereum) {
+        if (!cancelled) setMmStatus("no-mm");
+        return;
+      }
+      try {
+        const snap = await getInstalledSnap();
+        if (cancelled) return;
+        if (!snap) {
+          setMmStatus("uninstalled");
+          return;
+        }
+        const added = await isSafeInKeyring(safeAddress);
+        if (!cancelled) setMmStatus(added ? "added" : "not-added");
+      } catch {
+        if (!cancelled) setMmStatus("uninstalled");
+      }
+    }
+    deriveMmStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [safeInfo?.deployed, safeAddress, chain?.id, mmRefresh]);
 
   // Handle shared transaction or signature links
   useEffect(() => {
@@ -393,6 +435,60 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
     navigate(`/safe/${safeAddress}/sign-message`);
   }
 
+  // One-time: install/enable the LocalSafe snap. Not gated on isOwner.
+  async function handleEnableSnap() {
+    setMmBusy(true);
+    try {
+      await connectSnap();
+      setMmRefresh((c) => c + 1);
+      toast.success("Safe accounts enabled in MetaMask.");
+    } catch (err) {
+      toast.error(`Couldn't enable Safe accounts: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setMmBusy(false);
+    }
+  }
+
+  // Per-Safe: register THIS Safe as a MetaMask account. Not gated on isOwner.
+  async function handleAddSafeToMetaMask() {
+    if (!safeInfo) return;
+    const cid = chain?.id;
+    if (!cid) {
+      toast.error("Connect to the Safe's network first.");
+      return;
+    }
+    setMmBusy(true);
+    try {
+      await createSafeKeyringAccount({
+        safeAddress,
+        owners: safeInfo.owners,
+        threshold: safeInfo.threshold,
+        chainIds: [cid],
+        companionUrl: window.location.origin,
+      });
+      setMmRefresh((c) => c + 1);
+      toast.success("Safe added to MetaMask — select it there to connect to dApps.");
+    } catch (err) {
+      toast.error(`Couldn't add this Safe: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setMmBusy(false);
+    }
+  }
+
+  // Remove this Safe from MetaMask (e.g. so you can execute a Safe tx from this wallet).
+  async function handleRemoveFromMetaMask() {
+    setMmBusy(true);
+    try {
+      await removeSafeFromKeyring(safeAddress);
+      setMmRefresh((c) => c + 1);
+      toast.success("Removed this Safe from MetaMask.");
+    } catch (err) {
+      toast.error(`Couldn't remove from MetaMask: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setMmBusy(false);
+    }
+  }
+
   // Utility to handle Safe transaction import and state update
   async function handleImportTx(importPreview: ImportTxPreview | { error: string } | null) {
     if (typeof importPreview === "object" && importPreview !== null && !("error" in importPreview)) {
@@ -697,21 +793,126 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
               </>
             )}
             {safeInfo && safeInfo.deployed && isOwner && !isLoading && !error && !unavailable && (
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2">
                 <button
-                  className="btn btn-outline btn-primary"
+                  className="btn btn-outline btn-primary w-full"
                   onClick={handleGoToBuilder}
                   data-testid="safe-dashboard-go-to-builder-btn"
                 >
                   Build New Transaction
                 </button>
                 <button
-                  className="btn btn-outline btn-secondary"
+                  className="btn btn-outline btn-secondary w-full"
                   onClick={handleGoToSignMessage}
                   data-testid="safe-dashboard-sign-message-btn"
                 >
                   Sign Message
                 </button>
+              </div>
+            )}
+            {safeInfo && safeInfo.deployed && !isLoading && !error && !unavailable && (
+              <div
+                className="border-base-300 bg-base-200 rounded-box mt-2 flex flex-col gap-3 border p-4"
+                data-testid="safe-dashboard-metamask-section"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-xs tracking-wide opacity-70">METAMASK</span>
+                  {mmStatus === "added" && (
+                    <span className="badge badge-outline badge-sm gap-1" data-testid="safe-dashboard-mm-added-badge">
+                      ✓ in MetaMask
+                    </span>
+                  )}
+                </div>
+
+                {mmStatus === "checking" && (
+                  <div className="flex items-center gap-2 font-mono text-xs opacity-70">
+                    <span className="loading loading-spinner loading-xs"></span>
+                    Checking MetaMask…
+                  </div>
+                )}
+
+                {mmStatus === "no-mm" && (
+                  <p className="font-mono text-xs opacity-70" data-testid="safe-dashboard-mm-no-mm">
+                    MetaMask not detected. Install MetaMask to use this Safe as an account.
+                  </p>
+                )}
+
+                {(mmStatus === "uninstalled" || mmStatus === "not-added" || mmStatus === "added") && (
+                  <>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-col">
+                        <span className="text-sm">Safe accounts</span>
+                        <span className="font-mono text-xs opacity-60">
+                          One-time: lets MetaMask manage Safe accounts.
+                        </span>
+                      </div>
+                      {mmStatus === "uninstalled" ? (
+                        <button
+                          className="btn btn-outline btn-xs"
+                          onClick={handleEnableSnap}
+                          disabled={mmBusy}
+                          data-testid="safe-dashboard-mm-enable-btn"
+                        >
+                          {mmBusy ? <span className="loading loading-spinner loading-xs"></span> : "Enable"}
+                        </button>
+                      ) : (
+                        <span className="font-mono text-xs opacity-50" data-testid="safe-dashboard-mm-snap-enabled">
+                          enabled
+                        </span>
+                      )}
+                    </div>
+
+                    <hr className="rule-dashed opacity-60" />
+
+                    {mmStatus === "added" ? (
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="font-mono text-xs opacity-60" data-testid="safe-dashboard-mm-confirmed">
+                            Available in MetaMask — select it there to sign into dApps.
+                          </p>
+                          <button
+                            className="btn btn-ghost btn-xs"
+                            onClick={handleRemoveFromMetaMask}
+                            disabled={mmBusy}
+                            title="Remove this Safe from MetaMask (needed to sign or execute Safe transactions from this wallet)"
+                            data-testid="safe-dashboard-mm-remove-btn"
+                          >
+                            {mmBusy ? <span className="loading loading-spinner loading-xs"></span> : "remove"}
+                          </button>
+                        </div>
+                        <p className="font-mono text-xs opacity-50" data-testid="safe-dashboard-mm-signing-only-note">
+                          Signs messages only (dApp sign-in, approvals). dApp transactions can&apos;t route through
+                          MetaMask — build and execute them here in LocalSafe.
+                        </p>
+                        <p className="font-mono text-xs opacity-50" data-testid="safe-dashboard-mm-two-wallet-note">
+                          To sign or execute this Safe&apos;s transactions, use a different owner wallet — or remove it
+                          here first, then re-add anytime.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          className="btn btn-outline btn-sm w-full"
+                          onClick={handleAddSafeToMetaMask}
+                          disabled={mmBusy || mmStatus === "uninstalled"}
+                          title={
+                            mmStatus === "uninstalled"
+                              ? "Enable Safe accounts first"
+                              : "Add this Safe as a MetaMask account"
+                          }
+                          data-testid="safe-dashboard-add-to-metamask-btn"
+                        >
+                          {mmBusy ? <span className="loading loading-spinner loading-xs"></span> : "+ Add this Safe"}
+                        </button>
+                        {mmStatus === "not-added" && (
+                          <p className="font-mono text-xs opacity-60">
+                            Registers this Safe as a MetaMask account. You don&apos;t need to be an owner.
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
               </div>
             )}
             {safeInfo && safeInfo.deployed && !isOwner && !isLoading && !error && !unavailable && (
@@ -746,17 +947,17 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
                     to={`/safe/${safeAddress}/tx/${hash}`}
                     title="View transaction details"
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2">
                       <span className="font-semibold">Nonce:</span>
                       <span className="font-mono">{tx.data.nonce}</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <span className="font-semibold">Hash:</span>
-                      <span className="max-w-[120px] truncate font-mono text-xs" title={hash}>
+                      <span className="min-w-0 truncate font-mono text-xs" title={hash}>
                         {hash}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2">
                       <span className="font-semibold">Sigs:</span>
                       <span>{tx.signatures?.size ?? 0}</span>
                     </div>
@@ -811,19 +1012,19 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
                     to={`/safe/${safeAddress}/message/${hash}`}
                     title="View message details"
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <span className="font-semibold">Message:</span>
-                      <span className="max-w-[200px] truncate font-mono text-xs">
+                      <span className="min-w-0 truncate font-mono text-xs">
                         {typeof message.data === "string" ? message.data : "EIP-712 Typed Data"}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <span className="font-semibold">Hash:</span>
-                      <span className="max-w-[120px] truncate font-mono text-xs" title={hash}>
+                      <span className="min-w-0 truncate font-mono text-xs" title={hash}>
                         {hash}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2">
                       <span className="font-semibold">Sigs:</span>
                       <span>
                         {message.signatures?.size ?? 0}/{safeInfo?.threshold ?? 1}

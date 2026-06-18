@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useWalletConnect } from "../provider/WalletConnectProvider";
+import { useToast } from "@/app/hooks/useToast";
 import { useAccount } from "wagmi";
 import { useParams } from "react-router-dom";
 
@@ -39,6 +40,7 @@ type ProposalType = {
 };
 
 export default function WalletConnectModal({ open, onClose }: WalletConnectModalProps) {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState(0);
   const [pairingCode, setPairingCode] = useState("");
   const [apiKeyInput, setApiKeyInput] = useState("");
@@ -69,6 +71,9 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
         setActiveTab(0);
       }
     }
+    // `activeTab` is read but intentionally omitted: depending on it would reset the
+    // tab whenever the user switches it. Only react to open/sessions changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, sessions.length]);
 
   useEffect(() => {
@@ -94,7 +99,7 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
         setPairingCode(""); // Clear on success - pairing codes are single-use
       } catch (e) {
         console.error("Failed to pair:", e);
-        alert(`Failed to pair: ${e instanceof Error ? e.message : String(e)}`);
+        toast.error(`Failed to pair: ${e instanceof Error ? e.message : String(e)}`);
         // Don't clear input on failure - let user see/fix their pairing code
       }
     }
@@ -103,11 +108,11 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
   const handleApproveSession = async () => {
     if (!pendingProposal) return;
     if (!safeAddress) {
-      alert("Please navigate to a Safe before approving a session");
+      toast.warning("Please navigate to a Safe before approving a session");
       return;
     }
     if (!chain) {
-      alert("Please connect your wallet first");
+      toast.warning("Please connect your wallet first");
       return;
     }
 
@@ -167,7 +172,7 @@ export default function WalletConnectModal({ open, onClose }: WalletConnectModal
       await approveSession(namespaces, safeAddress, chain.id);
     } catch (e) {
       console.error("Failed to approve session:", e);
-      alert(`Failed to approve session: ${e instanceof Error ? e.message : String(e)}`);
+      toast.error(`Failed to approve session: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 

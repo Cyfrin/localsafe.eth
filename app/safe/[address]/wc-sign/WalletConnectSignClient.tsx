@@ -318,7 +318,7 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
         navigate(`/safe/${safeAddress}`);
       } else {
         // Other error - show alert and allow retry
-        alert(`Failed to sign message: ${errorMessage}`);
+        toast.error(`Failed to sign message: ${errorMessage}`);
         setIsProcessing(false);
       }
     }
@@ -396,7 +396,7 @@ export default function WalletConnectSignClient({ safeAddress }: { safeAddress: 
       );
     } catch (error) {
       console.error("Failed to reject signing:", error);
-      alert(`Failed to reject signing: ${error instanceof Error ? error.message : String(error)}`);
+      toast.error(`Failed to reject signing: ${error instanceof Error ? error.message : String(error)}`);
       setIsProcessing(false);
       return;
     } finally {

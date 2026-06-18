@@ -54,6 +54,10 @@ node_modules/
 /playwright/.auth/
 /.cache-synpress/
 
+# snap build output
+/snap/dist/
+
 # Cyfrin
 .claude/
 .cygent/
+next-steps.md
