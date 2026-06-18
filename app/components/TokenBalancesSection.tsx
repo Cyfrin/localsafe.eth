@@ -4,10 +4,15 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { usePublicClient } from "wagmi";
 import { formatUnits } from "viem";
 import { fetchTokenPrice } from "@/app/utils/coingecko";
-import { getCoinGeckoApiKey } from "./ApiKeyModal";
-import ApiKeyModal from "./ApiKeyModal";
+import { fetchOctavPortfolio, octavKeyForChain, type OctavPortfolio } from "@/app/utils/octav";
+import { getOctavEnabled, useOctavEnabled } from "@/app/utils/octav-enabled";
+import { ERC20_ABI } from "@/app/utils/erc20-abi";
+import ApiKeyModal, { getCoinGeckoApiKey, getOctavApiKey } from "./ApiKeyModal";
+import OctavPortfolioPanel from "./OctavPortfolioPanel";
 import TokenTransferModal from "./TokenTransferModal";
-import AddressInput from "./AddressInput";
+import TokensAddTokenForm from "./TokensAddTokenForm";
+import TokensTable from "./TokensTable";
+import TokensJsonEditorModal from "./TokensJsonEditorModal";
 
 interface TokenInfo {
   address: string;
@@ -27,37 +32,6 @@ interface TokenBalancesSectionProps {
   chainId: number;
 }
 
-const ERC20_ABI = [
-  {
-    constant: true,
-    inputs: [{ name: "_owner", type: "address" }],
-    name: "balanceOf",
-    outputs: [{ name: "balance", type: "uint256" }],
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "decimals",
-    outputs: [{ name: "", type: "uint8" }],
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "symbol",
-    outputs: [{ name: "", type: "string" }],
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "name",
-    outputs: [{ name: "", type: "string" }],
-    type: "function",
-  },
-] as const;
-
 export default function TokenBalancesSection({ safeAddress, chainId }: TokenBalancesSectionProps) {
   const publicClient = usePublicClient();
   const [tokens, setTokens] = useState<TokenInfo[]>([]);
@@ -74,7 +48,27 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
   const [showJsonEditor, setShowJsonEditor] = useState(false);
   const [jsonEditorValue, setJsonEditorValue] = useState("");
   const [jsonEditorError, setJsonEditorError] = useState<string | null>(null);
+  const [octavDiscovering, setOctavDiscovering] = useState(false);
+  const [octavMessage, setOctavMessage] = useState<string | null>(null);
+  const [octavPortfolio, setOctavPortfolio] = useState<OctavPortfolio | null>(null);
+  // Tracks whether the API-settings modal was opened because the user tried
+  // to Enrich without an Octav key — if so, re-attempt the enrich once the
+  // modal closes with a key now configured.
+  const [pendingOctavDiscover, setPendingOctavDiscover] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const octavSupportsChain = octavKeyForChain(chainId) !== null;
+  const octavEnabled = useOctavEnabled();
+  // Octav features are gated by both the chain-support map AND the user's
+  // per-app preference. When disabled, the discover button, panel mount, and
+  // panel state are all suppressed; any previously-fetched portfolio is
+  // dropped so re-enabling shows a clean slate rather than stale data.
+  const octavAvailable = octavSupportsChain && octavEnabled;
+  useEffect(() => {
+    // setState(null) is idempotent when state is already null — no need to
+    // read `octavPortfolio` (which would refire the effect on every fetch).
+    if (!octavEnabled) setOctavPortfolio(null);
+  }, [octavEnabled]);
 
   const STORAGE_KEY = `token-balances-${safeAddress}-${chainId}`;
 
@@ -159,13 +153,29 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
         });
 
         const results = await Promise.all(balancePromises);
-        setBalances(results);
+        // Preserve any USD prices already on the balances row (Octav-derived
+        // or freshly fetched from CoinGecko) — otherwise the on-chain
+        // balance refresh would blank the Price/Value cells until the next
+        // CoinGecko round-trip completes. usdValue gets recomputed against
+        // the new balance so it stays in sync if the holding moved.
+        setBalances((prev) =>
+          results.map((r) => {
+            const prevRow = prev.find((p) => p.address.toLowerCase() === r.address.toLowerCase());
+            if (prevRow?.usdPrice !== undefined) {
+              const parsed = parseFloat(r.balance);
+              return {
+                ...r,
+                usdPrice: prevRow.usdPrice,
+                usdValue: Number.isFinite(parsed) ? parsed * prevRow.usdPrice : undefined,
+              };
+            }
+            return r;
+          }),
+        );
 
-        // Fetch prices if API key is available
-        const apiKey = getCoinGeckoApiKey();
-        if (apiKey) {
-          fetchPrices(results, apiKey);
-        }
+        // CoinGecko's public API works without a key (rate-limited); pass
+        // through whatever the user has configured for higher limits.
+        fetchPrices(results, getCoinGeckoApiKey() ?? "");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch balances");
       } finally {
@@ -176,15 +186,11 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
     fetchBalances();
   }, [tokens, publicClient, safeAddress, chainId, fetchPrices]);
 
-  // Refresh prices manually
+  // Refresh prices manually. Works without a CoinGecko key thanks to
+  // the public keyless API; a key just unlocks higher rate limits.
   function handleRefreshPrices() {
-    const apiKey = getCoinGeckoApiKey();
-    if (!apiKey) {
-      setShowApiKeyModal(true);
-      return;
-    }
     if (balances.length > 0) {
-      fetchPrices(balances, apiKey);
+      fetchPrices(balances, getCoinGeckoApiKey() ?? "");
     }
   }
 
@@ -241,6 +247,95 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
       setShowAddToken(false);
     } catch {
       setError("Failed to fetch token info. Make sure it's a valid ERC20 token.");
+    }
+  }
+
+  // Enrich the Safe view with Octav. Fetches both:
+  //   1. the structured portfolio (DeFi protocol positions, networth,
+  //      chain breakdown) for the Octav panel that mounts above this table
+  //   2. the flat wallet-token list that merges into the existing Tokens
+  //      table so the Transfer + on-chain refresh flow keeps working
+  // Opens the API-key modal if no key is configured.
+  async function handleOctavDiscover() {
+    setError(null);
+    setOctavMessage(null);
+    const apiKey = getOctavApiKey();
+    if (!apiKey) {
+      setPendingOctavDiscover(true);
+      setShowApiKeyModal(true);
+      return;
+    }
+    if (!octavSupportsChain) {
+      setError(`Octav doesn't support chainId ${chainId} yet.`);
+      return;
+    }
+    setOctavDiscovering(true);
+    try {
+      const portfolio = await fetchOctavPortfolio(safeAddress, chainId, apiKey);
+      // The user may have toggled Octav off while the fetch was in flight —
+      // drop the response so we don't mutate state for a now-disabled feature.
+      if (!getOctavEnabled()) {
+        setOctavDiscovering(false);
+        return;
+      }
+      setOctavPortfolio(portfolio);
+      const discovered = portfolio.walletTokens;
+
+      // Functional setters so a manual `+ Add Token` that races this fetch
+      // isn't silently dropped by reading a stale snapshot of `tokens`.
+      setTokens((prev) => {
+        const have = new Set(prev.map((t) => t.address.toLowerCase()));
+        const toAdd: TokenInfo[] = discovered
+          .filter((d) => !have.has(d.address.toLowerCase()))
+          .map((d) => ({
+            address: d.address,
+            symbol: d.symbol,
+            decimals: d.decimals,
+            name: d.name,
+          }));
+        return toAdd.length ? [...prev, ...toAdd] : prev;
+      });
+
+      // Seed balances + USD values directly from Octav so the table populates
+      // without waiting for on-chain reads or a CoinGecko fetch. Built off
+      // `prev` (the latest balances) + the Octav payload so we don't lose
+      // any row added while the fetch was in flight.
+      const byAddr = new Map(discovered.map((d) => [d.address.toLowerCase(), d]));
+      setBalances((prev) => {
+        const seen = new Set<string>();
+        const out: TokenBalance[] = [];
+        for (const b of prev) {
+          const key = b.address.toLowerCase();
+          seen.add(key);
+          const d = byAddr.get(key);
+          out.push(d ? { ...b, balance: d.balance, usdPrice: d.usdPrice, usdValue: d.usdValue } : b);
+        }
+        for (const d of discovered) {
+          const key = d.address.toLowerCase();
+          if (seen.has(key)) continue;
+          out.push({
+            address: d.address,
+            symbol: d.symbol,
+            decimals: d.decimals,
+            name: d.name,
+            balance: d.balance,
+            usdPrice: d.usdPrice,
+            usdValue: d.usdValue,
+          });
+        }
+        return out;
+      });
+
+      const protoCount = portfolio.protocols.length;
+      setOctavMessage(
+        `Enriched: ${discovered.length} wallet token${discovered.length === 1 ? "" : "s"}` +
+          (protoCount > 0 ? `, ${protoCount} protocol position${protoCount === 1 ? "" : "s"}` : "") +
+          `. Networth $${portfolio.networth.toLocaleString(undefined, { maximumFractionDigits: 2 })}.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Octav portfolio fetch failed");
+    } finally {
+      setOctavDiscovering(false);
     }
   }
 
@@ -351,17 +446,84 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
           )}
         </div>
         <div className="flex gap-2">
+          {/* API settings — inline gear SVG with currentColor so the icon
+           *  flips black/white with the theme just like the refresh icon. */}
           <button
-            className="btn btn-ghost btn-sm"
+            className="btn btn-outline btn-sm gap-1.5"
             onClick={() => setShowApiKeyModal(true)}
-            title="Configure CoinGecko API Key"
+            title="Configure API keys (CoinGecko, Octav)"
           >
-            ⚙️ API
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.25"
+              strokeLinecap="square"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+            API
           </button>
+          {octavAvailable && (
+            <div
+              className="tooltip"
+              data-tip={getOctavApiKey() ? "Pull tokens + DeFi positions via Octav" : "Configure Octav API Key"}
+            >
+              {/* Octav-branded action — red #FF1A45 + white icon + black
+               *  border, inheriting daisyUI's offset-shadow from the
+               *  `btn` primitive so it stays in-theme. Mirrors the
+               *  "Powered by Octav" attribution in the DeFi panel. */}
+              <button
+                className="btn btn-sm border-base-content gap-2 font-semibold whitespace-nowrap text-white hover:opacity-90"
+                style={{ backgroundColor: "#FF1A45" }}
+                onClick={handleOctavDiscover}
+                disabled={octavDiscovering}
+              >
+                <img
+                  src="/octav-icon.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className="h-4 w-4"
+                  style={{ filter: "brightness(0) invert(1)" }}
+                />
+                {octavDiscovering ? "Enriching…" : "Enrich with Octav"}
+              </button>
+            </div>
+          )}
           {balances.length > 0 && (
             <div className="tooltip" data-tip="Refresh Prices">
-              <button className="btn btn-ghost btn-sm" onClick={handleRefreshPrices} disabled={fetchingPrices}>
-                {fetchingPrices ? "⏳" : "🔄"}
+              {/* Refresh button — inherits the brutalist border + offset
+               *  shadow from `btn-outline`. The SVG uses `currentColor` so
+               *  the stroke flips black/white with the theme automatically;
+               *  a slow spin animation runs while a refresh is in flight. */}
+              <button
+                className="btn btn-outline btn-sm px-2"
+                onClick={handleRefreshPrices}
+                disabled={fetchingPrices}
+                aria-label="Refresh prices"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.25"
+                  strokeLinecap="square"
+                  className={fetchingPrices ? "animate-spin" : ""}
+                  aria-hidden="true"
+                >
+                  <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+                  <path d="M21 3v5h-5" />
+                  <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+                  <path d="M3 21v-5h5" />
+                </svg>
               </button>
             </div>
           )}
@@ -381,137 +543,92 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
         </div>
       </div>
 
-      {/* Add Token Form (collapsible) */}
       {showAddToken && (
-        <div className="bg-base-200 mb-4 rounded-lg p-4">
-          <div className="flex gap-2">
-            <AddressInput
-              value={newTokenInput}
-              onChange={setNewTokenInput}
-              onResolvedAddressChange={setNewTokenAddress}
-              placeholder="Token contract address (0x... or name.eth)"
-              className="flex-1 text-sm"
-            />
-            <button className="btn btn-primary btn-sm" onClick={handleAddToken} disabled={!newTokenAddress}>
-              Add
-            </button>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                setShowAddToken(false);
-                setNewTokenInput("");
-                setNewTokenAddress(undefined);
-                setError(null);
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-          {error && <div className="alert alert-error mt-2 text-sm">{error}</div>}
-        </div>
+        <TokensAddTokenForm
+          value={newTokenInput}
+          onChange={setNewTokenInput}
+          onResolvedAddressChange={setNewTokenAddress}
+          resolvedAddress={newTokenAddress}
+          onAdd={handleAddToken}
+          onCancel={() => {
+            setShowAddToken(false);
+            setNewTokenInput("");
+            setNewTokenAddress(undefined);
+            setError(null);
+          }}
+          error={error}
+        />
       )}
 
-      {/* API Key Warning */}
+      {/* CoinGecko API key is OPTIONAL — the public keyless endpoint
+       *  handles low-volume usage. A key only matters for higher rate
+       *  limits, so this banner just nudges instead of warning. */}
       {!getCoinGeckoApiKey() && balances.length > 0 && (
-        <div className="alert alert-warning mb-4 text-sm">
+        <div className="alert alert-info mb-4 text-sm">
           <span>
-            Configure a CoinGecko API key to see USD prices.{" "}
+            Prices use CoinGecko&apos;s public API (rate-limited).{" "}
             <button className="link link-primary" onClick={() => setShowApiKeyModal(true)}>
-              Add API Key
-            </button>
+              Add an API key
+            </button>{" "}
+            for higher limits.
           </span>
         </div>
       )}
 
-      {/* Token List Table */}
-      <div className="overflow-x-auto">
-        {loading ? (
-          <div className="p-8 text-center">
-            <span className="loading loading-spinner loading-lg"></span>
-          </div>
-        ) : balances.length === 0 && tokens.length === 0 ? (
-          <div className="bg-base-200 rounded-box p-8 text-center text-gray-400">
-            No tokens added. Click &quot;+ Add Token&quot; to track token balances.
-          </div>
-        ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Asset</th>
-                <th>Price</th>
-                <th>Balance</th>
-                <th>Value</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {balances.map((token) => (
-                <tr key={token.address} className="group hover:bg-base-200">
-                  <td>
-                    <div>
-                      <div className="font-semibold">{token.symbol}</div>
-                      <div className="text-xs opacity-60">{token.name}</div>
-                    </div>
-                  </td>
-                  <td className="font-mono text-sm">
-                    {token.usdPrice
-                      ? `$${token.usdPrice.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}`
-                      : "-"}
-                  </td>
-                  <td className="font-mono text-sm">
-                    {parseFloat(token.balance).toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 4,
-                    })}{" "}
-                    {token.symbol}
-                  </td>
-                  <td className="font-mono text-sm font-semibold">
-                    {token.usdValue
-                      ? `$${token.usdValue.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}`
-                      : "-"}
-                  </td>
-                  <td>
-                    <div className="flex gap-1">
-                      <button
-                        className="btn btn-primary btn-xs opacity-0 transition-opacity group-hover:opacity-100"
-                        onClick={() => {
-                          setSelectedToken(token);
-                          setShowTransferModal(true);
-                        }}
-                      >
-                        Transfer
-                      </button>
-                      <button
-                        className="btn btn-ghost btn-xs"
-                        onClick={() => handleRemoveToken(token.address)}
-                        title="Remove token"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {/* Octav auto-discover result banner */}
+      {octavMessage && (
+        <div className="alert alert-info mb-4 text-sm">
+          <span>{octavMessage}</span>
+          <button className="btn btn-ghost btn-xs" onClick={() => setOctavMessage(null)}>
+            ✕
+          </button>
+        </div>
+      )}
 
-      {/* API Key Settings Modal */}
+      <TokensTable
+        balances={balances}
+        loading={loading}
+        hasTokens={tokens.length > 0}
+        onTransfer={(row) => {
+          setSelectedToken(row as TokenBalance);
+          setShowTransferModal(true);
+        }}
+        onRemove={handleRemoveToken}
+      />
+
+      {/* Octav-derived DeFi positions panel — renders BELOW the Tokens
+       *  table so wallet holdings come first, then non-wallet protocol
+       *  positions (Aave/Beefy/Pendle/…). Hidden until "Enrich with
+       *  Octav". Styled with the same `divider` + `table` primitives the
+       *  Tokens section uses, so the active theme's offset-shadow look
+       *  applies uniformly. */}
+      {octavEnabled && octavPortfolio && (
+        <OctavPortfolioPanel
+          portfolio={octavPortfolio}
+          currentChainKey={octavKeyForChain(chainId) ?? undefined}
+          onDismiss={() => setOctavPortfolio(null)}
+        />
+      )}
+
+      {/* Unified API Settings Modal — handles both CoinGecko and Octav.
+       *  Opens via the header ⚙️ button or automatically when the user
+       *  clicks "Enrich with Octav" without a key configured. */}
       <ApiKeyModal
         open={showApiKeyModal}
         onClose={() => {
           setShowApiKeyModal(false);
-          // Refresh prices if API key was just added
-          const apiKey = getCoinGeckoApiKey();
-          if (apiKey && balances.length > 0) {
-            fetchPrices(balances, apiKey);
+          // Refresh prices when modal closes — works keyless, with a key
+          // if one was just added, faster.
+          if (balances.length > 0) {
+            fetchPrices(balances, getCoinGeckoApiKey() ?? "");
+          }
+          // If the user opened the modal trying to enrich, retry now that
+          // they (presumably) saved a key.
+          if (pendingOctavDiscover) {
+            setPendingOctavDiscover(false);
+            if (getOctavApiKey()) {
+              void handleOctavDiscover();
+            }
           }
         }}
       />
@@ -532,66 +649,14 @@ export default function TokenBalancesSection({ safeAddress, chainId }: TokenBala
         />
       )}
 
-      {/* JSON Editor Modal */}
-      {showJsonEditor && (
-        <div className="modal modal-open">
-          <div className="modal-box max-w-4xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold">Edit Token List (JSON)</h3>
-              <button className="btn btn-ghost btn-sm btn-circle" onClick={() => setShowJsonEditor(false)}>
-                ✕
-              </button>
-            </div>
-
-            <div className="alert alert-info mb-4">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                className="h-6 w-6 shrink-0 stroke-current"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                ></path>
-              </svg>
-              <div className="text-sm">
-                <p className="font-semibold">Token List Format</p>
-                <p>
-                  Each token must have: address (string), symbol (string), decimals (number), and optionally name
-                  (string)
-                </p>
-              </div>
-            </div>
-
-            <textarea
-              className="textarea textarea-bordered w-full font-mono text-sm"
-              rows={20}
-              value={jsonEditorValue}
-              onChange={(e) => setJsonEditorValue(e.target.value)}
-              placeholder='[\n  {\n    "address": "0x...",\n    "symbol": "USDT",\n    "decimals": 6,\n    "name": "Tether USD"\n  }\n]'
-            />
-
-            {jsonEditorError && (
-              <div className="alert alert-error mt-2">
-                <span>{jsonEditorError}</span>
-              </div>
-            )}
-
-            <div className="modal-action">
-              <button className="btn btn-ghost" onClick={() => setShowJsonEditor(false)}>
-                Cancel
-              </button>
-              <button className="btn btn-primary" onClick={handleSaveJsonEditor}>
-                Save Changes
-              </button>
-            </div>
-          </div>
-          <div className="modal-backdrop" onClick={() => setShowJsonEditor(false)}></div>
-        </div>
-      )}
+      <TokensJsonEditorModal
+        open={showJsonEditor}
+        value={jsonEditorValue}
+        onChange={setJsonEditorValue}
+        error={jsonEditorError}
+        onSave={handleSaveJsonEditor}
+        onClose={() => setShowJsonEditor(false)}
+      />
     </div>
   );
 }
