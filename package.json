@@ -40,7 +40,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@next/eslint-plugin-next": "^15.5.0",
+    "@next/eslint-plugin-next": "^16.2.9",
     "@playwright/test": "1.48.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
