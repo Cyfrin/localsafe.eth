@@ -63,6 +63,8 @@ export const DEFAULT_SAFE_WALLET_DATA = {
 export const WAGMI_CONFIG_NETWORKS_KEY = "MSIG_wagmiConfigNetworks";
 export const SAFE_TX_STORAGE_KEY = "MSIGUI_safeCurrentTxMap";
 export const SAFE_WALLET_DATA_KEY = "MSIGUI_safeWalletData";
+// Dev override: force-enable the MetaMask snap controls when Flask isn't detected.
+export const SNAP_FORCE_ENABLE_KEY = "MSIGUI_snapForceEnable";
 
 // Network form defaults
 export const NETWORK_FORM_DEFAULTS = {
