@@ -1,6 +1,11 @@
 packages:
   - snap
 
+# Force a patched socket.io-parser (DoS GHSA) into @metamask/sdk's socket.io
+# client; it is the only flagged transitive that ships in the browser bundle.
+overrides:
+  socket.io-parser: '>=4.2.6'
+
 # Block ALL dependency build/install scripts (supply-chain hardening). pnpm 10+
 # blocks dependency scripts by default; these are the only deps that ship one.
 # Each was verified unnecessary here — `pnpm build` and `pnpm lint` both pass
