@@ -4,7 +4,7 @@ import AppAddress from "@/app/components/AppAddress";
 import AppCard from "@/app/components/AppCard";
 import AppSection from "@/app/components/AppSection";
 import useSafe from "@/app/hooks/useSafe";
-import { DEFAULT_DEPLOY_STEPS, STEPS_DEPLOY_LABEL } from "@/app/utils/constants";
+import { DEFAULT_DEPLOY_STEPS, STEPS_DEPLOY_LABEL, SNAP_FORCE_ENABLE_KEY } from "@/app/utils/constants";
 import React, { useEffect, useState, useRef } from "react";
 import { useSafeTxContext } from "@/app/provider/SafeTxProvider";
 import { useSafeMessageContext } from "@/app/provider/SafeMessageProvider";
@@ -28,8 +28,10 @@ import {
   connectSnap,
   createSafeKeyringAccount,
   getInstalledSnap,
+  isFlaskInstalled,
   isSafeInKeyring,
   removeSafeFromKeyring,
+  SNAP_IS_LOCAL,
 } from "@/app/utils/snap";
 
 type MmStatus = "checking" | "no-mm" | "uninstalled" | "not-added" | "added";
@@ -89,6 +91,8 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
   const [mmStatus, setMmStatus] = useState<MmStatus>("checking");
   const [mmBusy, setMmBusy] = useState(false);
   const [mmRefresh, setMmRefresh] = useState(0);
+  // A published snap installs in any MetaMask; the dev (local:) snap needs Flask.
+  const [snapEnableAllowed, setSnapEnableAllowed] = useState(!SNAP_IS_LOCAL);
 
   // Derive the MetaMask snap/account status for this Safe (install -> add -> added).
   useEffect(() => {
@@ -119,6 +123,27 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
       cancelled = true;
     };
   }, [safeInfo?.deployed, safeAddress, chain?.id, mmRefresh]);
+
+  // Allow enabling the snap only when it's installable: published snap, MetaMask
+  // Flask detected, or the user forced it on in Advanced settings (the escape
+  // hatch for when Flask can't be auto-detected).
+  useEffect(() => {
+    if (!SNAP_IS_LOCAL) {
+      setSnapEnableAllowed(true);
+      return;
+    }
+    if (typeof window !== "undefined" && localStorage.getItem(SNAP_FORCE_ENABLE_KEY) === "true") {
+      setSnapEnableAllowed(true);
+      return;
+    }
+    let cancelled = false;
+    isFlaskInstalled().then((ok) => {
+      if (!cancelled) setSnapEnableAllowed(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mmRefresh]);
 
   // Handle shared transaction or signature links
   useEffect(() => {
@@ -850,7 +875,12 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
                         <button
                           className="btn btn-outline btn-xs"
                           onClick={handleEnableSnap}
-                          disabled={mmBusy}
+                          disabled={mmBusy || !snapEnableAllowed}
+                          title={
+                            snapEnableAllowed
+                              ? "Install the LocalSafe snap in MetaMask"
+                              : "Requires MetaMask Flask (dev only). Force-enable in Advanced settings."
+                          }
                           data-testid="safe-dashboard-mm-enable-btn"
                         >
                           {mmBusy ? <span className="loading loading-spinner loading-xs"></span> : "Enable"}
@@ -861,6 +891,14 @@ export default function SafeDashboardClient({ safeAddress }: { safeAddress: `0x$
                         </span>
                       )}
                     </div>
+
+                    {mmStatus === "uninstalled" && SNAP_IS_LOCAL && (
+                      <p className="font-mono text-xs opacity-60" data-testid="safe-dashboard-mm-dev-only-note">
+                        {snapEnableAllowed
+                          ? "Dev only — the LocalSafe snap requires MetaMask Flask."
+                          : "Dev only — requires MetaMask Flask, which wasn't detected. If you have it, force-enable in Advanced settings."}
+                      </p>
+                    )}
 
                     <hr className="rule-dashed opacity-60" />
 

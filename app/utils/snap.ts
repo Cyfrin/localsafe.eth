@@ -7,9 +7,33 @@
 /** The LocalSafe Snap id. Dev serves from localhost; prod points at npm. */
 export const SNAP_ID = process.env.NEXT_PUBLIC_SNAP_ID ?? "local:http://localhost:8088";
 
+/**
+ * A `local:` snap id is a dev build that only MetaMask Flask will install. When
+ * the snap is published (`npm:…`) regular MetaMask can install it, so the Flask
+ * requirement no longer applies.
+ */
+export const SNAP_IS_LOCAL = SNAP_ID.startsWith("local:");
+
 type Eip1193Provider = {
   request: (args: { method: string; params?: unknown }) => Promise<unknown>;
 };
+
+/**
+ * True when the injected provider is MetaMask Flask (the developer build).
+ * Flask reports a `web3_clientVersion` containing "flask". Returns false when no
+ * provider is injected or the call fails, so callers treat "unknown" as "not
+ * Flask" and fall back to the manual override.
+ */
+export async function isFlaskInstalled(): Promise<boolean> {
+  try {
+    const provider = (globalThis as { ethereum?: Eip1193Provider }).ethereum;
+    if (!provider) return false;
+    const version = await provider.request({ method: "web3_clientVersion" });
+    return typeof version === "string" && version.toLowerCase().includes("flask");
+  } catch {
+    return false;
+  }
+}
 
 function getProvider(): Eip1193Provider {
   const provider = (globalThis as { ethereum?: Eip1193Provider }).ethereum;

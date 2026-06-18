@@ -6,6 +6,7 @@ import AppSection from "@/app/components/AppSection";
 import AppCard from "@/app/components/AppCard";
 import { useToast } from "@/app/hooks/useToast";
 import { useConfirm } from "@/app/hooks/useToast";
+import { SNAP_FORCE_ENABLE_KEY } from "@/app/utils/constants";
 
 type Category = "app" | "cache" | "test" | "library";
 
@@ -87,6 +88,11 @@ const KEY_CATALOG: KeyDescriptor[] = [
     description: "Enables end-to-end test mode. Set to 'true' to use the Playwright test fixtures.",
     requiresReload: true,
   },
+  {
+    match: SNAP_FORCE_ENABLE_KEY,
+    category: "test",
+    description: "Force-enables the LocalSafe MetaMask snap controls when Flask isn't auto-detected. 'true' to enable.",
+  },
 ];
 
 const LIBRARY_PREFIXES = [
@@ -141,9 +147,13 @@ export default function AdvancedSettingsClient() {
   const [newKeyOpen, setNewKeyOpen] = useState(false);
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
+  const [forceSnap, setForceSnap] = useState(false);
 
   useEffect(() => {
     loadStorage();
+    if (typeof window !== "undefined") {
+      setForceSnap(localStorage.getItem(SNAP_FORCE_ENABLE_KEY) === "true");
+    }
   }, []);
 
   const loadStorage = () => {
@@ -177,6 +187,13 @@ export default function AdvancedSettingsClient() {
       return a.key.localeCompare(b.key);
     });
     setItems(out);
+  };
+
+  const handleToggleForceSnap = (next: boolean) => {
+    if (next) localStorage.setItem(SNAP_FORCE_ENABLE_KEY, "true");
+    else localStorage.removeItem(SNAP_FORCE_ENABLE_KEY);
+    setForceSnap(next);
+    loadStorage();
   };
 
   const beginEdit = (item: StorageItem) => {
@@ -370,6 +387,28 @@ export default function AdvancedSettingsClient() {
               </span>
             </div>
           </div>
+
+          {/* Developer flags */}
+          <section className="surface-inset border-base-content flex flex-col gap-3 border-2 p-4">
+            <span className="ascii-label">developer</span>
+            <label htmlFor="force-snap-toggle" className="flex items-start justify-between gap-3">
+              <span className="flex flex-col gap-1 font-mono text-[12px] leading-relaxed">
+                <span className="text-sm">Force-enable MetaMask snap</span>
+                <span className="opacity-70">
+                  The LocalSafe snap is a dev build that needs MetaMask Flask. Turn this on to enable the snap controls
+                  on the Safe dashboard when Flask can&apos;t be auto-detected.
+                </span>
+              </span>
+              <input
+                id="force-snap-toggle"
+                type="checkbox"
+                className="checkbox checkbox-sm mt-1 shrink-0"
+                checked={forceSnap}
+                onChange={(e) => handleToggleForceSnap(e.target.checked)}
+                data-testid="advanced-force-snap-toggle"
+              />
+            </label>
+          </section>
 
           {/* Toolbar */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
