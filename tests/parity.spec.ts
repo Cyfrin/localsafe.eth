@@ -190,6 +190,19 @@ test.describe("protocol-kit parity", () => {
       true,
     );
 
+    // BattleChain testnet (627) defaults to its own registered v1.5.0 suite
+    expect(getKnownChainSafeVersion(627)).toBe("1.5.0");
+    const battlechainTestnetDefaults = getDefaultContractAddresses(627);
+    expect(battlechainTestnetDefaults.safeSingletonAddress).toBe("0x71314F3E6B1D9386A1de784B644Cf5D0Dde3bB97");
+    expect(battlechainTestnetDefaults.safeProxyFactoryAddress).toBe("0x80DbD037C59521F393fDfE15504c6b6b7969F1a1");
+    expect(battlechainTestnetDefaults.simulateTxAccessorAddress).toBeUndefined();
+    expect(getUntrustedContracts(battlechainTestnetDefaults, 627)).toEqual([]);
+
+    // Testnet addresses are trusted ONLY on chain 627, not on mainnet battlechain (626)
+    const bcTestnetSingleton = "0x71314F3E6B1D9386A1de784B644Cf5D0Dde3bB97";
+    expect(isOfficialDeployment("safeSingletonAddress", bcTestnetSingleton, 627)).toBe(true);
+    expect(isOfficialDeployment("safeSingletonAddress", bcTestnetSingleton, 626)).toBe(false);
+
     // Canonical deployments are trusted on every chain (case-insensitive)
     expect(isOfficialDeployment("safeSingletonAddress", anvilDefaults.safeSingletonAddress!.toLowerCase(), 626)).toBe(
       true,
