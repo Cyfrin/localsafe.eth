@@ -174,6 +174,25 @@ export const KNOWN_CHAIN_DEPLOYMENTS: Record<string, KnownChainDeployment> = {
       fallbackHandlerAddress: ["0x115b290ecDe805FD846E0C347f3419A4234Fd673"], // ExtensibleFallbackHandler
     },
   },
+  // BattleChain testnet (chain 627). Safe v1.5.0 suite at chain-specific
+  // addresses. Verified on-chain 2026-06-18: the singleton's VERSION() returns
+  // "1.5.0" and all eight suite addresses have deployed bytecode. As with 626,
+  // trust rests on deployment provenance, not bytecode byte-matching to the
+  // official Safe v1.5.0 release builds.
+  "627": {
+    safeVersion: "1.5.0",
+    addresses: {
+      safeSingletonAddress: "0x71314F3E6B1D9386A1de784B644Cf5D0Dde3bB97",
+      safeProxyFactoryAddress: "0x80DbD037C59521F393fDfE15504c6b6b7969F1a1",
+      fallbackHandlerAddress: "0xc6B2C6982A5643b7702894D4A0901b9371dd1283",
+      multiSendAddress: "0x69BEaBc6824ba1461F53800d9C3F29FFeC7cf408",
+      multiSendCallOnlyAddress: "0xa6a3C9103C062429e459D263bF5EcCd31Effd56C",
+      signMessageLibAddress: "0x930833004d88b8bF3208a216323aFfdf9D40C14C",
+      createCallAddress: "0x670D1c4c5cc72193b352562Ed75B9ae8224E98b3",
+      tokenCallbackHandlerAddress: "0x232898253fABB3a1EB585bdEE4bE2a36f6D6fd64",
+    },
+    alsoTrusted: {},
+  },
 };
 
 /** Safe version of a registered chain-specific suite (e.g. 1.5.0 on battlechain). */

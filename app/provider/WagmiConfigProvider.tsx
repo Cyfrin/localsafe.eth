@@ -49,6 +49,21 @@ const battlechain = defineChain({
   },
 });
 
+// BattleChain testnet — not yet in viem/chains. Safe suite for chain 627 is
+// registered in vendor/safe/deployments.ts (KNOWN_CHAIN_DEPLOYMENTS).
+const battlechainTestnet = defineChain({
+  id: 627,
+  name: "BattleChain Testnet",
+  nativeCurrency: { decimals: 18, name: "Ether", symbol: "ETH" },
+  rpcUrls: {
+    default: { http: ["https://testnet.battlechain.com:3051"] },
+  },
+  blockExplorers: {
+    default: { name: "BattleChain Explorer", url: "https://explorer.testnet.battlechain.com" },
+  },
+  testnet: true,
+});
+
 // Extend Window interface for E2E testing utilities
 declare global {
   interface Window {
@@ -122,6 +137,10 @@ const withOptionalRpcOverride = (chain: Chain, envRpcUrl: string | undefined): C
 const DEFAULT_CHAINS: Chain[] = [
   addChainIcon(withOptionalRpcOverride(mainnet, process.env.NEXT_PUBLIC_MAINNET_RPC_URL), ethereumIcon.src),
   addChainIcon(withOptionalRpcOverride(battlechain, process.env.NEXT_PUBLIC_BATTLECHAIN_RPC_URL), battlechainIcon.src),
+  addChainIcon(
+    withOptionalRpcOverride(battlechainTestnet, process.env.NEXT_PUBLIC_BATTLECHAIN_TESTNET_RPC_URL),
+    battlechainIcon.src,
+  ),
   addChainIcon(withOptionalRpcOverride(arbitrum, process.env.NEXT_PUBLIC_ARBITRUM_RPC_URL), arbitrumIcon.src),
   addChainIcon(withOptionalRpcOverride(optimism, process.env.NEXT_PUBLIC_OPTIMISM_RPC_URL), optimismIcon.src),
   addChainIcon(withOptionalRpcOverride(base, process.env.NEXT_PUBLIC_BASE_RPC_URL), baseIcon.src),
@@ -157,7 +176,7 @@ export function isMainnetRpcConfigured(chains: Chain[]): boolean {
 // One-time additive migrations for users with a persisted chain list: each step runs
 // exactly once, so removing a migrated-in chain afterwards still sticks.
 const CHAIN_LIST_MIGRATION_KEY = "MSIG_wagmiConfigNetworksMigration";
-const CHAIN_LIST_MIGRATION = 2; // 1: add battlechain (626); 2: battlechain icon
+const CHAIN_LIST_MIGRATION = 3; // 1: add battlechain (626); 2: battlechain icon; 3: add battlechain testnet (627)
 
 function migrateStoredChains(stored: Chain[]): Chain[] {
   const applied = Number(localStorage.getItem(CHAIN_LIST_MIGRATION_KEY) || "0");
@@ -174,6 +193,11 @@ function migrateStoredChains(stored: Chain[]): Chain[] {
     if (index !== -1 && !(migrated[index] as Chain & { iconUrl?: string }).iconUrl) {
       migrated[index] = addChainIcon(migrated[index], battlechainIcon.src);
     }
+  }
+  if (applied < 3 && !migrated.some((chain) => chain.id === battlechainTestnet.id)) {
+    const testnetEntry = DEFAULT_CHAINS.find((chain) => chain.id === battlechainTestnet.id)!;
+    const bcIndex = migrated.findIndex((chain) => chain.id === battlechain.id);
+    migrated.splice(bcIndex === -1 ? migrated.length : bcIndex + 1, 0, testnetEntry);
   }
   return migrated;
 }
