@@ -1,15 +1,17 @@
 "use client";
 
-import Image from "next/image";
 import GithubSvg from "../assets/svg/GithubSvg";
-import poweredByCyfrinDark from "../assets/svg/powered-by-cyfrin-dark.png";
-import poweredByCyfrinBright from "../assets/svg/powered-by-cyfrin-bright.png";
+// Consumed as an alpha mask only. The badge is tinted to the page's
+// base-content (CSS mask + bg-current) so it reads ink-on-bone in the light
+// theme and bone-on-ink in dark, matching the palette instead of brand orange.
+import cyfrinBadgeMask from "../assets/svg/powered-by-cyfrin-dark.png";
 import packageJson from "../../package.json";
-import { useTheme } from "../provider/ThemeProvider";
 
 export default function Footer() {
-  const { isDarkMode } = useTheme();
   const version = process.env.NEXT_PUBLIC_APP_VERSION || packageJson.version || "0.0.0";
+  // Next bakes the (IPFS) assetPrefix into the static-import .src, exactly like
+  // the logo loaded via next/image, so the mask URL resolves under /ipfs/<CID>/.
+  const badgeMask = `url(${cyfrinBadgeMask.src})`;
 
   return (
     <footer className="bg-base-100 border-base-content w-full border-t-2">
@@ -28,9 +30,24 @@ export default function Footer() {
           href="https://www.cyfrin.io/"
           target="_blank"
           rel="noopener noreferrer"
-          className="transition-opacity hover:translate-x-[1px] hover:opacity-80"
+          className="text-base-content transition-opacity hover:translate-x-[1px] hover:opacity-80"
+          aria-label="Powered by Cyfrin"
         >
-          <Image src={isDarkMode ? poweredByCyfrinBright : poweredByCyfrinDark} alt="Powered by Cyfrin" height={28} />
+          <span
+            role="img"
+            aria-label="Powered by Cyfrin"
+            className="block h-7 w-[84px] bg-current"
+            style={{
+              maskImage: badgeMask,
+              WebkitMaskImage: badgeMask,
+              maskRepeat: "no-repeat",
+              WebkitMaskRepeat: "no-repeat",
+              maskSize: "contain",
+              WebkitMaskSize: "contain",
+              maskPosition: "center",
+              WebkitMaskPosition: "center",
+            }}
+          />
         </a>
 
         <a
