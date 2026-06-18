@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { isAddress } from "viem";
+import { useToast } from "@/app/hooks/useToast";
 import AppAddress from "./AppAddress";
 import AddressInput from "./AddressInput";
 
@@ -19,6 +20,7 @@ type ManageOwnersModalProps = {
 };
 
 export default function ManageOwnersModal({ open, onClose, owners, threshold, onBatchUpdate }: ManageOwnersModalProps) {
+  const toast = useToast();
   const [newOwnerInput, setNewOwnerInput] = useState("");
   const [newOwnerAddress, setNewOwnerAddress] = useState<string | undefined>();
   const [ownersToRemove, setOwnersToRemove] = useState<Set<string>>(new Set());
@@ -44,7 +46,7 @@ export default function ManageOwnersModal({ open, onClose, owners, threshold, on
 
   const handleAddOwnerToQueue = () => {
     if (!newOwnerAddress || !isAddress(newOwnerAddress)) {
-      alert("Invalid address");
+      toast.error("Invalid address");
       return;
     }
 
@@ -52,19 +54,19 @@ export default function ManageOwnersModal({ open, onClose, owners, threshold, on
 
     // Check if already an owner
     if (owners.some((o) => o.toLowerCase() === normalizedAddress)) {
-      alert("This address is already an owner");
+      toast.warning("This address is already an owner");
       return;
     }
 
     // Check if already in the add queue
     if (ownersToAdd.some((o) => o.toLowerCase() === normalizedAddress)) {
-      alert("This address is already queued to be added");
+      toast.warning("This address is already queued to be added");
       return;
     }
 
     // Check if it's in the remove queue (if so, remove it from there instead of adding)
     if (ownersToRemove.has(normalizedAddress)) {
-      alert("This address is queued for removal. Remove it from the removal queue first.");
+      toast.warning("This address is queued for removal. Remove it from the removal queue first.");
       return;
     }
 
@@ -93,12 +95,12 @@ export default function ManageOwnersModal({ open, onClose, owners, threshold, on
   const handleCreateTransaction = async () => {
     // Validate threshold
     if (newThreshold < 1 || newThreshold > finalOwnerCount) {
-      alert(`Threshold must be between 1 and ${finalOwnerCount} (final owner count)`);
+      toast.warning(`Threshold must be between 1 and ${finalOwnerCount} (final owner count)`);
       return;
     }
 
     if (!hasChanges) {
-      alert("No changes to apply");
+      toast.warning("No changes to apply");
       return;
     }
 
@@ -117,11 +119,11 @@ export default function ManageOwnersModal({ open, onClose, owners, threshold, on
       ];
 
       await onBatchUpdate(changes, newThreshold);
-      alert("Transaction created! Sign and broadcast it to apply the changes.");
+      toast.success("Transaction created! Sign and broadcast it to apply the changes.");
       onClose();
     } catch (error) {
       console.error("Failed to create batch update:", error);
-      alert(`Failed to create transaction: ${error instanceof Error ? error.message : String(error)}`);
+      toast.error(`Failed to create transaction: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsProcessing(false);
     }

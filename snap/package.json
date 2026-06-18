@@ -1,0 +1,36 @@
+{
+  "name": "localsafe-snap",
+  "version": "0.1.0",
+  "description": "Use a Safe multisig as an account in MetaMask. Signing happens in the LocalSafe companion app.",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cyfrin/localsafe.eth.git"
+  },
+  "main": "./dist/bundle.js",
+  "files": [
+    "dist/",
+    "images/",
+    "snap.manifest.json"
+  ],
+  "scripts": {
+    "build": "mm-snap build",
+    "serve": "mm-snap serve",
+    "start": "mm-snap watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@metamask/keyring-api": "^23.3.0",
+    "@metamask/keyring-snap-sdk": "^9.0.2",
+    "@metamask/snaps-sdk": "^11.1.1",
+    "@metamask/utils": "^11.11.0",
+    "uuid": "^14.0.0"
+  },
+  "devDependencies": {
+    "@metamask/snaps-cli": "^8.4.1",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.9"
+  }
+}

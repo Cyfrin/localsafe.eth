@@ -7,13 +7,6 @@ import type { SessionTypes, ProposalTypes, SignClientTypes } from "@walletconnec
 const WC_PROJECT_ID_STORAGE_KEY = "walletconnect-project-id";
 const DEFAULT_PROJECT_ID = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
 
-interface NamespaceConfig {
-  accounts: string[];
-  methods: string[];
-  events: string[];
-  chains: string[];
-}
-
 interface WalletConnectResponse {
   id: number;
   jsonrpc: string;

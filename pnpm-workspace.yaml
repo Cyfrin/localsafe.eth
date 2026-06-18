@@ -1,3 +1,6 @@
+packages:
+  - snap
+
 # Block ALL dependency build/install scripts (supply-chain hardening). pnpm 10+
 # blocks dependency scripts by default; these are the only deps that ship one.
 # Each was verified unnecessary here — `pnpm build` and `pnpm lint` both pass
@@ -10,6 +13,7 @@
 #   - keccak: browser uses its JS build; prebuilds cover linux/win/mac-x64.
 # Flip an entry to `true` only if a future dependency genuinely needs to compile.
 allowBuilds:
+  '@swc/core': false
   '@tailwindcss/oxide': false
   bufferutil: false
   keccak: false

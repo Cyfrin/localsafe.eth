@@ -17,7 +17,7 @@ export default function Footer() {
         <div className="flex items-center gap-3">
           <span className="ascii-label">BUILD&nbsp;v{version}</span>
           <span aria-hidden className="text-base-content/40 hidden font-mono text-xs sm:inline">
-            ////////
+            {"////////"}
           </span>
           <span className="font-mono text-[11px] tracking-[0.15em] uppercase opacity-60">
             self-custody &middot; local-first

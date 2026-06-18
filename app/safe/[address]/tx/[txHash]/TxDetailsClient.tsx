@@ -11,7 +11,8 @@ import { useSafeTxContext } from "@/app/provider/SafeTxProvider";
 import DataPreview from "@/app/components/DataPreview";
 import { BroadcastModal } from "@/app/components/BroadcastModal";
 import { useAccount } from "wagmi";
-import { useToast } from "@/app/hooks/useToast";
+import { useToast, useConfirm } from "@/app/hooks/useToast";
+import { isSnapInternalAccountError, removeSafeFromKeyring } from "@/app/utils/snap";
 import { calculateSafeTxHashes } from "@/app/utils/messageHashing";
 import { useWalletConnect } from "@/app/provider/WalletConnectProvider";
 import AddressInput from "@/app/components/AddressInput";
@@ -58,6 +59,7 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
   const navigate = useNavigate();
   const { signSafeTransaction, broadcastSafeTransaction, isOwner, safeInfo, kit } = useSafe(safeAddress);
   const { removeTransaction, getAllTransactions, saveTransaction } = useSafeTxContext();
+  const { confirm } = useConfirm();
   const toast = useToast();
   const { approveRequest } = useWalletConnect();
 
@@ -243,6 +245,29 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
     setSigning(false);
   }
 
+  // MetaMask blocks execTransaction while the Safe is registered as one of its own
+  // accounts; offer to remove it so the user can execute (or hint at another wallet).
+  async function handleSnapExecConflict() {
+    const removeIt = await confirm(
+      "MetaMask is blocking this because the Safe is registered as one of its accounts (it won't send transactions to your own accounts). Confirm to remove the Safe from MetaMask so you can execute. You can re-add it anytime from the dashboard, or execute from a different wallet.",
+      "Safe is registered in MetaMask",
+    );
+    if (!removeIt) {
+      toast.info("Tip: execute from a wallet that doesn't have this Safe added (e.g. a separate browser profile).");
+      return;
+    }
+    try {
+      const removed = await removeSafeFromKeyring(safeAddress);
+      if (removed) {
+        toast.success("Removed this Safe from MetaMask. Press Broadcast again to execute.");
+      } else {
+        toast.info("Couldn't find this Safe in MetaMask — try executing from a different wallet.");
+      }
+    } catch (rmErr) {
+      toast.error(`Couldn't remove from MetaMask: ${rmErr instanceof Error ? rmErr.message : String(rmErr)}`);
+    }
+  }
+
   /**
    * Handle broadcasting the transaction.
    *
@@ -285,9 +310,13 @@ export default function TxDetailsClient({ safeAddress, txHash }: { safeAddress: 
         }
       }
     } catch (err) {
-      setBroadcastError(err instanceof Error ? err.message : String(err));
-      setShowModal(true);
-      toast.error("Broadcast failed");
+      if (isSnapInternalAccountError(err)) {
+        await handleSnapExecConflict();
+      } else {
+        setBroadcastError(err instanceof Error ? err.message : String(err));
+        setShowModal(true);
+        toast.error("Broadcast failed");
+      }
     }
     setBroadcasting(false);
   }

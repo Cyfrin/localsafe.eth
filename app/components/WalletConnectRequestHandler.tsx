@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useWalletConnect } from "../provider/WalletConnectProvider";
+import { useToast } from "@/app/hooks/useToast";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 
 /**
@@ -11,6 +12,7 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
  */
 export default function WalletConnectRequestHandler() {
   const { pendingRequest, rejectRequest, clearPendingRequest } = useWalletConnect();
+  const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const pathname = location.pathname;
@@ -40,7 +42,7 @@ export default function WalletConnectRequestHandler() {
       processedRequestIds.current.add(pendingRequest.id);
 
       if (!safeAddress) {
-        alert("Please navigate to a Safe before sending transactions via WalletConnect");
+        toast.warning("Please navigate to a Safe before sending transactions via WalletConnect");
         return;
       }
 
@@ -67,7 +69,7 @@ export default function WalletConnectRequestHandler() {
       processedRequestIds.current.add(pendingRequest.id);
 
       if (!safeAddress) {
-        alert("Please navigate to a Safe before signing messages via WalletConnect");
+        toast.warning("Please navigate to a Safe before signing messages via WalletConnect");
         return;
       }
 
@@ -82,7 +84,7 @@ export default function WalletConnectRequestHandler() {
       // Navigate to the Safe's WalletConnect signing page
       navigate(`/safe/${safeAddress}/wc-sign`);
     }
-  }, [pendingRequest, navigate, safeAddress]);
+  }, [pendingRequest, navigate, safeAddress, toast]);
 
   // Auto-reject requests when navigating away from WalletConnect pages
   useEffect(() => {
