@@ -25,22 +25,22 @@
   "dependencies": {
     "@rainbow-me/rainbowkit": "2.2.11",
     "@reown/walletkit": "1.5.5",
-    "@tanstack/react-query": "5.101.0",
+    "@tanstack/react-query": "5.101.1",
     "@wagmi/core": "2.22.1",
-    "@walletconnect/core": "2.23.9",
-    "@walletconnect/types": "2.23.9",
-    "ethers": "6.16.0",
+    "@walletconnect/core": "2.23.10",
+    "@walletconnect/types": "2.23.10",
+    "ethers": "6.17.0",
     "next": "15.5.19",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "react-router-dom": "7.18.0",
-    "viem": "2.52.2",
+    "viem": "2.53.1",
     "wagmi": "2.19.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.5",
-    "@playwright/test": "1.60.0",
-    "@tailwindcss/postcss": "4.3.0",
+    "@playwright/test": "1.61.1",
+    "@tailwindcss/postcss": "4.3.1",
     "@types/node": "20.19.11",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
@@ -49,10 +49,10 @@
     "eslint": "9.34.0",
     "eslint-config-next": "15.5.19",
     "eslint-config-prettier": "10.1.8",
-    "playwright-core": "1.60.0",
+    "playwright-core": "1.61.1",
     "prettier": "3.8.4",
     "prettier-plugin-tailwindcss": "0.8.0",
-    "tailwindcss": "4.3.0",
+    "tailwindcss": "4.3.1",
     "typescript": "5.9.2"
   }
 }
