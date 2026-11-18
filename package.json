@@ -26,7 +26,7 @@
     "@rainbow-me/rainbowkit": "2.2.11",
     "@reown/walletkit": "1.5.5",
     "@tanstack/react-query": "5.101.0",
-    "@wagmi/core": "2.22.1",
+    "@wagmi/core": "3.5.2",
     "@walletconnect/core": "2.23.9",
     "@walletconnect/types": "2.23.9",
     "ethers": "6.16.0",
