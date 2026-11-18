@@ -25,8 +25,8 @@
     "@metamask/keyring-api": "^23.3.0",
     "@metamask/keyring-snap-sdk": "^9.0.2",
     "@metamask/snaps-sdk": "^11.1.1",
-    "@metamask/utils": "^11.11.0",
-    "uuid": "^14.0.0"
+    "@metamask/utils": "^11.12.1",
+    "uuid": "^14.0.2"
   },
   "devDependencies": {
     "@metamask/snaps-cli": "^8.4.1",
