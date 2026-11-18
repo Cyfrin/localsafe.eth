@@ -47,7 +47,7 @@
     "@wonderland/walletless": "1.2.0",
     "daisyui": "5.5.23",
     "eslint": "9.34.0",
-    "eslint-config-next": "15.5.19",
+    "eslint-config-next": "16.2.9",
     "eslint-config-prettier": "10.1.8",
     "playwright-core": "1.60.0",
     "prettier": "3.8.4",
