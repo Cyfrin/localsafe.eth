@@ -30,7 +30,7 @@
     "@walletconnect/core": "2.23.9",
     "@walletconnect/types": "2.23.9",
     "ethers": "6.16.0",
-    "next": "15.5.19",
+    "next": "16.2.9",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "react-router-dom": "7.18.0",
