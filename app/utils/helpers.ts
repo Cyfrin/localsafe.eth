@@ -17,9 +17,9 @@ export async function getMinimalEIP1193Provider(
   const rawProvider = await connector.getProvider();
   const baseProvider = rawProvider as MinimalEIP1193Provider;
   return {
-    request: baseProvider.request,
-    on: baseProvider.on,
-    removeListener: baseProvider.removeListener,
+    request: baseProvider.request.bind(baseProvider),
+    on: baseProvider.on?.bind(baseProvider),
+    removeListener: baseProvider.removeListener?.bind(baseProvider),
   };
 }
 
